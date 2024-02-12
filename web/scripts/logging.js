@@ -100,7 +100,7 @@ class ComfyLoggingDialog extends ComfyDialog {
 		const url = URL.createObjectURL(blob);
 		const a = $el("a", {
 			href: url,
-			download: `comfyui-logs-${Date.now()}.json`,
+			download: `sdcfy-logs-${Date.now()}.json`,
 			style: { display: "none" },
 			parent: document.body,
 		});
@@ -362,7 +362,7 @@ export class ComfyLogging {
 
 	async addInitData() {
 		if (!this.enabled) return;
-		const source = "ComfyUI.Logging";
+		const source = "SD-CFY.Logging";
 		this.addEntry(source, "debug", { UserAgent: navigator.userAgent });
 		const systemStats = await api.getSystemStats();
 		this.addEntry(source, "debug", systemStats);

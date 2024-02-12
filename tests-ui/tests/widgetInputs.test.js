@@ -426,7 +426,7 @@ describe("widget inputs", () => {
 				},
 				6: { inputs: { samples: ["5", 0], vae: ["1", 2] }, class_type: "VAEDecode" },
 				7: {
-					inputs: { filename_prefix: values.filename_prefix ?? "ComfyUI", images: ["6", 0] },
+					inputs: { filename_prefix: values.filename_prefix ?? "SD-CFY", images: ["6", 0] },
 					class_type: "SaveImage",
 				},
 			});
@@ -488,7 +488,7 @@ describe("widget inputs", () => {
 			widthPrimitive.widgets.value.value = 1024;
 			expect(schedulerPrimitive.widgets.value.value).toBe("normal");
 			schedulerPrimitive.widgets.value.value = "simple";
-			expect(filePrimitive.widgets.value.value).toBe("ComfyUI");
+			expect(filePrimitive.widgets.value.value).toBe("SD-CFY");
 			filePrimitive.widgets.value.value = "ComfyTest";
 
 			await checkBeforeAndAfterReload(graph, async () => {

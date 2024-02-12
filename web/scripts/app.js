@@ -1,6 +1,6 @@
 import { ComfyLogging } from "./logging.js";
 import { ComfyWidgets, initWidgets } from "./widgets.js";
-import { ComfyUI, $el } from "./ui.js";
+import { SD-CFY, $el } from "./ui.js";
 import { api } from "./api.js";
 import { defaultGraph } from "./defaultGraph.js";
 import { getPngMetadata, getWebpMetadata, importA1111, getLatentMetadata } from "./pnginfo.js";
@@ -50,7 +50,7 @@ export class ComfyApp {
 	static clipspace_return_node = null;
 
 	constructor() {
-		this.ui = new ComfyUI(this);
+		this.ui = new SD-CFY(this);
 		this.logging = new ComfyLogging(this);
 
 		/**
