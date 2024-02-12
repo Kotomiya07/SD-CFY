@@ -356,7 +356,7 @@ app.registerExtension({
 						}
 					}
 				}
-				// Sets the color of ComfyUI elements
+				// Sets the color of sdcfy elements
 				if (colorPalette.colors.comfy_base) {
 					const rootStyle = document.documentElement.style;
 					for (const key in colorPalette.colors.comfy_base) {

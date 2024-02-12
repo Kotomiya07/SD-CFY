@@ -84,7 +84,7 @@ def cuda_malloc_warning():
             if b in device_name:
                 cuda_malloc_warning = True
         if cuda_malloc_warning:
-            print("\nWARNING: this card most likely does not support cuda-malloc, if you get \"CUDA error\" please run ComfyUI with: --disable-cuda-malloc\n")
+            print("\nWARNING: this card most likely does not support cuda-malloc, if you get \"CUDA error\" please run sdcfy with: --disable-cuda-malloc\n")
 
 def prompt_worker(q, server):
     e = execution.PromptExecutor(server)

@@ -1,6 +1,6 @@
 import { ComfyLogging } from "./logging.js";
 import { ComfyWidgets } from "./widgets.js";
-import { ComfyUI, $el } from "./ui.js";
+import { sdcfy, $el } from "./ui.js";
 import { api } from "./api.js";
 import { defaultGraph } from "./defaultGraph.js";
 import { getPngMetadata, getWebpMetadata, importA1111, getLatentMetadata } from "./pnginfo.js";
@@ -31,7 +31,7 @@ export class ComfyApp {
 	static clipspace_return_node = null;
 
 	constructor() {
-		this.ui = new ComfyUI(this);
+		this.ui = new sdcfy(this);
 		this.logging = new ComfyLogging(this);
 
 		/**
@@ -1273,7 +1273,7 @@ export class ComfyApp {
 		this.graph.start();
 
 		function resizeCanvas() {
-			// Limit minimal scale to 1, see https://github.com/comfyanonymous/ComfyUI/pull/845
+			// Limit minimal scale to 1, see https://github.com/comfyanonymous/sdcfy/pull/845
 			const scale = Math.max(window.devicePixelRatio, 1);
 			const { width, height } = canvasEl.getBoundingClientRect();
 			canvasEl.width = Math.round(width * scale);

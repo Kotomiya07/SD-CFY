@@ -522,7 +522,7 @@ class ComfyList {
 	}
 }
 
-export class ComfyUI {
+export class sdcfy {
 	constructor(app) {
 		this.app = app;
 		this.dialog = new ComfyDialog();

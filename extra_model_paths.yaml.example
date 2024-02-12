@@ -1,4 +1,4 @@
-#Rename this to extra_model_paths.yaml and ComfyUI will load it
+#Rename this to extra_model_paths.yaml and sdcfy will load it
 
 
 #config for a1111 ui

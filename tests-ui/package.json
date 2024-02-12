@@ -9,18 +9,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/comfyanonymous/ComfyUI.git"
+    "url": "git+https://github.com/Kotomiya07/SD-CFY.git"
   },
   "keywords": [
     "sdcfy",
     "test"
   ],
-  "author": "comfyanonymous",
+  "author": "Kotomiya07",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/comfyanonymous/ComfyUI/issues"
+    "url": "https://github.com/Kotomiya07/SD-CFY/issues"
   },
-  "homepage": "https://github.com/comfyanonymous/ComfyUI#readme",
+  "homepage": "https://github.com/Kotomiya07/SD-CFY#readme",
   "devDependencies": {
     "@babel/preset-env": "^7.22.20",
     "@types/jest": "^29.5.5",
