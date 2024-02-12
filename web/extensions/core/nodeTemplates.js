@@ -20,7 +20,7 @@ const id = "Comfy.NodeTemplates";
 class ManageTemplates extends ComfyDialog {
 	constructor() {
 		super();
-		this.element.classList.add("comfy-manage-templates");
+		this.element.classList.add("sdcfy-manage-templates");
 		this.templates = this.load();
 
 		this.importInput = $el("input", {

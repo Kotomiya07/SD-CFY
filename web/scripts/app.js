@@ -6,7 +6,7 @@ import { defaultGraph } from "./defaultGraph.js";
 import { getPngMetadata, getWebpMetadata, importA1111, getLatentMetadata } from "./pnginfo.js";
 
 /**
- * @typedef {import("types/comfy").ComfyExtension} ComfyExtension
+ * @typedef {import("types/sdcfy").ComfyExtension} ComfyExtension
  */
 
 export class ComfyApp {

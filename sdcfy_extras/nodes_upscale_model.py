@@ -1,5 +1,5 @@
 import os
-from sdcfy_extras.chainner_models import model_loading
+from comfy_extras.chainner_models import model_loading
 from sdcfy import model_management
 import torch
 import sdcfy.utils

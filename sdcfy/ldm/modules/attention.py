@@ -1,3 +1,4 @@
+from inspect import isfunction
 import math
 import torch
 import torch.nn.functional as F
@@ -5,7 +6,7 @@ from torch import nn, einsum
 from einops import rearrange, repeat
 from typing import Optional, Any
 
-from .diffusionmodules.util import checkpoint, AlphaBlender, timestep_embedding
+from .diffusionmodules.util import checkpoint
 from .sub_quadratic_attention import efficient_dot_product_attention
 
 from sdcfy import model_management
@@ -16,7 +17,6 @@ if model_management.xformers_enabled():
 
 from sdcfy.cli_args import args
 import sdcfy.ops
-ops = sdcfy.ops.disable_weight_init
 
 # CrossAttn precision handling
 if args.dont_upcast_attention:
@@ -53,7 +53,7 @@ def init_(tensor):
 
 # feedforward
 class GEGLU(nn.Module):
-    def __init__(self, dim_in, dim_out, dtype=None, device=None, operations=ops):
+    def __init__(self, dim_in, dim_out, dtype=None, device=None, operations=sdcfy.ops):
         super().__init__()
         self.proj = operations.Linear(dim_in, dim_out * 2, dtype=dtype, device=device)
 
@@ -63,7 +63,7 @@ class GEGLU(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, dim_out=None, mult=4, glu=False, dropout=0., dtype=None, device=None, operations=ops):
+    def __init__(self, dim, dim_out=None, mult=4, glu=False, dropout=0., dtype=None, device=None, operations=sdcfy.ops):
         super().__init__()
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
@@ -80,6 +80,16 @@ class FeedForward(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
+
+def zero_module(module):
+    """
+    Zero out the parameters of a module and return it.
+    """
+    for p in module.parameters():
+        p.detach().zero_()
+    return module
+
 
 def Normalize(in_channels, dtype=None, device=None):
     return torch.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True, dtype=dtype, device=device)
@@ -101,20 +111,19 @@ def attention_basic(q, k, v, heads, mask=None):
 
     # force cast to fp32 to avoid overflowing
     if _ATTN_PRECISION =="fp32":
-        sim = einsum('b i d, b j d -> b i j', q.float(), k.float()) * scale
+        with torch.autocast(enabled=False, device_type = 'cuda'):
+            q, k = q.float(), k.float()
+            sim = einsum('b i d, b j d -> b i j', q, k) * scale
     else:
         sim = einsum('b i d, b j d -> b i j', q, k) * scale
 
     del q, k
 
     if exists(mask):
-        if mask.dtype == torch.bool:
-            mask = rearrange(mask, 'b ... -> b (...)') #TODO: check if this bool part matches pytorch attention
-            max_neg_value = -torch.finfo(sim.dtype).max
-            mask = repeat(mask, 'b j -> (b h) () j', h=h)
-            sim.masked_fill_(~mask, max_neg_value)
-        else:
-            sim += mask
+        mask = rearrange(mask, 'b ... -> b (...)')
+        max_neg_value = -torch.finfo(sim.dtype).max
+        mask = repeat(mask, 'b j -> (b h) () j', h=h)
+        sim.masked_fill_(~mask, max_neg_value)
 
     # attention, what we cannot get enough of
     sim = sim.softmax(dim=-1)
@@ -151,19 +160,32 @@ def attention_sub_quad(query, key, value, heads, mask=None):
 
     mem_free_total, mem_free_torch = model_management.get_free_memory(query.device, True)
 
+    chunk_threshold_bytes = mem_free_torch * 0.5 #Using only this seems to work better on AMD
+
     kv_chunk_size_min = None
-    kv_chunk_size = None
-    query_chunk_size = None
 
-    for x in [4096, 2048, 1024, 512, 256]:
-        count = mem_free_total / (batch_x_heads * bytes_per_token * x * 4.0)
-        if count >= k_tokens:
-            kv_chunk_size = k_tokens
-            query_chunk_size = x
-            break
+    #not sure at all about the math here
+    #TODO: tweak this
+    if mem_free_total > 8192 * 1024 * 1024 * 1.3:
+        query_chunk_size_x = 1024 * 4
+    elif mem_free_total > 4096 * 1024 * 1024 * 1.3:
+        query_chunk_size_x = 1024 * 2
+    else:
+        query_chunk_size_x = 1024
+    kv_chunk_size_min_x = None
+    kv_chunk_size_x = (int((chunk_threshold_bytes // (batch_x_heads * bytes_per_token * query_chunk_size_x)) * 2.0) // 1024) * 1024
+    if kv_chunk_size_x < 1024:
+        kv_chunk_size_x = None
 
-    if query_chunk_size is None:
-        query_chunk_size = 512
+    if chunk_threshold_bytes is not None and qk_matmul_size_bytes <= chunk_threshold_bytes:
+        # the big matmul fits into our memory limit; do everything in 1 chunk,
+        # i.e. send it down the unchunked fast-path
+        query_chunk_size = q_tokens
+        kv_chunk_size = k_tokens
+    else:
+        query_chunk_size = query_chunk_size_x
+        kv_chunk_size = kv_chunk_size_x
+        kv_chunk_size_min = kv_chunk_size_min_x
 
     hidden_states = efficient_dot_product_attention(
         query,
@@ -174,7 +196,6 @@ def attention_sub_quad(query, key, value, heads, mask=None):
         kv_chunk_size_min=kv_chunk_size_min,
         use_checkpoint=False,
         upcast_attention=upcast_attention,
-        mask=mask,
     )
 
     hidden_states = hidden_states.to(dtype)
@@ -208,7 +229,7 @@ def attention_split(q, k, v, heads, mask=None):
 
     gb = 1024 ** 3
     tensor_size = q.shape[0] * q.shape[1] * k.shape[1] * element_size
-    modifier = 3
+    modifier = 3 if element_size == 2 else 2.5
     mem_required = tensor_size * modifier
     steps = 1
 
@@ -236,16 +257,10 @@ def attention_split(q, k, v, heads, mask=None):
                         s1 = einsum('b i d, b j d -> b i j', q[:, i:end].float(), k.float()) * scale
                 else:
                     s1 = einsum('b i d, b j d -> b i j', q[:, i:end], k) * scale
-
-                if mask is not None:
-                    if len(mask.shape) == 2:
-                        s1 += mask[i:end]
-                    else:
-                        s1 += mask[:, i:end]
+                first_op_done = True
 
                 s2 = s1.softmax(dim=-1).to(v.dtype)
                 del s1
-                first_op_done = True
 
                 r1[:, i:end] = einsum('b i j, b j d -> b i d', s2, v)
                 del s2
@@ -274,20 +289,9 @@ def attention_split(q, k, v, heads, mask=None):
     )
     return r1
 
-BROKEN_XFORMERS = False
-try:
-    x_vers = xformers.__version__
-    #I think 0.0.23 is also broken (q with bs bigger than 65535 gives CUDA error)
-    BROKEN_XFORMERS = x_vers.startswith("0.0.21") or x_vers.startswith("0.0.22") or x_vers.startswith("0.0.23")
-except:
-    pass
-
 def attention_xformers(q, k, v, heads, mask=None):
     b, _, dim_head = q.shape
     dim_head //= heads
-    if BROKEN_XFORMERS:
-        if b * heads > 65535:
-            return attention_pytorch(q, k, v, heads, mask)
 
     q, k, v = map(
         lambda t: t.unsqueeze(3)
@@ -298,14 +302,11 @@ def attention_xformers(q, k, v, heads, mask=None):
         (q, k, v),
     )
 
-    if mask is not None:
-        pad = 8 - q.shape[1] % 8
-        mask_out = torch.empty([q.shape[0], q.shape[1], q.shape[1] + pad], dtype=q.dtype, device=q.device)
-        mask_out[:, :, :mask.shape[-1]] = mask
-        mask = mask_out[:, :, :mask.shape[-1]]
+    # actually compute the attention, what we cannot get enough of
+    out = xformers.ops.memory_efficient_attention(q, k, v, attn_bias=None)
 
-    out = xformers.ops.memory_efficient_attention(q, k, v, attn_bias=mask)
-
+    if exists(mask):
+        raise NotImplementedError
     out = (
         out.unsqueeze(0)
         .reshape(b, heads, -1, dim_head)
@@ -330,6 +331,7 @@ def attention_pytorch(q, k, v, heads, mask=None):
 
 
 optimized_attention = attention_basic
+optimized_attention_masked = attention_basic
 
 if model_management.xformers_enabled():
     print("Using xformers cross attention")
@@ -345,26 +347,11 @@ else:
         print("Using sub quadratic optimization for cross attention, if you have memory or speed issues try using: --use-split-cross-attention")
         optimized_attention = attention_sub_quad
 
-optimized_attention_masked = optimized_attention
-
-def optimized_attention_for_device(device, mask=False, small_input=False):
-    if small_input:
-        if model_management.pytorch_attention_enabled():
-            return attention_pytorch #TODO: need to confirm but this is probably slightly faster for small inputs in all cases
-        else:
-            return attention_basic
-
-    if device == torch.device("cpu"):
-        return attention_sub_quad
-
-    if mask:
-        return optimized_attention_masked
-
-    return optimized_attention
-
+if model_management.pytorch_attention_enabled():
+    optimized_attention_masked = attention_pytorch
 
 class CrossAttention(nn.Module):
-    def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0., dtype=None, device=None, operations=ops):
+    def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0., dtype=None, device=None, operations=sdcfy.ops):
         super().__init__()
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
@@ -396,72 +383,53 @@ class CrossAttention(nn.Module):
 
 
 class BasicTransformerBlock(nn.Module):
-    def __init__(self, dim, n_heads, d_head, dropout=0., context_dim=None, gated_ff=True, checkpoint=True, ff_in=False, inner_dim=None,
-                 disable_self_attn=False, disable_temporal_crossattention=False, switch_temporal_ca_to_sa=False, dtype=None, device=None, operations=ops):
+    def __init__(self, dim, n_heads, d_head, dropout=0., context_dim=None, gated_ff=True, checkpoint=True,
+                 disable_self_attn=False, dtype=None, device=None, operations=sdcfy.ops):
         super().__init__()
-
-        self.ff_in = ff_in or inner_dim is not None
-        if inner_dim is None:
-            inner_dim = dim
-
-        self.is_res = inner_dim == dim
-
-        if self.ff_in:
-            self.norm_in = operations.LayerNorm(dim, dtype=dtype, device=device)
-            self.ff_in = FeedForward(dim, dim_out=inner_dim, dropout=dropout, glu=gated_ff, dtype=dtype, device=device, operations=operations)
-
         self.disable_self_attn = disable_self_attn
-        self.attn1 = CrossAttention(query_dim=inner_dim, heads=n_heads, dim_head=d_head, dropout=dropout,
+        self.attn1 = CrossAttention(query_dim=dim, heads=n_heads, dim_head=d_head, dropout=dropout,
                               context_dim=context_dim if self.disable_self_attn else None, dtype=dtype, device=device, operations=operations)  # is a self-attention if not self.disable_self_attn
-        self.ff = FeedForward(inner_dim, dim_out=dim, dropout=dropout, glu=gated_ff, dtype=dtype, device=device, operations=operations)
-
-        if disable_temporal_crossattention:
-            if switch_temporal_ca_to_sa:
-                raise ValueError
-            else:
-                self.attn2 = None
-        else:
-            context_dim_attn2 = None
-            if not switch_temporal_ca_to_sa:
-                context_dim_attn2 = context_dim
-
-            self.attn2 = CrossAttention(query_dim=inner_dim, context_dim=context_dim_attn2,
-                                heads=n_heads, dim_head=d_head, dropout=dropout, dtype=dtype, device=device, operations=operations)  # is self-attn if context is none
-            self.norm2 = operations.LayerNorm(inner_dim, dtype=dtype, device=device)
-
-        self.norm1 = operations.LayerNorm(inner_dim, dtype=dtype, device=device)
-        self.norm3 = operations.LayerNorm(inner_dim, dtype=dtype, device=device)
+        self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype, device=device, operations=operations)
+        self.attn2 = CrossAttention(query_dim=dim, context_dim=context_dim,
+                              heads=n_heads, dim_head=d_head, dropout=dropout, dtype=dtype, device=device, operations=operations)  # is self-attn if context is none
+        self.norm1 = nn.LayerNorm(dim, dtype=dtype, device=device)
+        self.norm2 = nn.LayerNorm(dim, dtype=dtype, device=device)
+        self.norm3 = nn.LayerNorm(dim, dtype=dtype, device=device)
         self.checkpoint = checkpoint
         self.n_heads = n_heads
         self.d_head = d_head
-        self.switch_temporal_ca_to_sa = switch_temporal_ca_to_sa
 
     def forward(self, x, context=None, transformer_options={}):
         return checkpoint(self._forward, (x, context, transformer_options), self.parameters(), self.checkpoint)
 
     def _forward(self, x, context=None, transformer_options={}):
         extra_options = {}
-        block = transformer_options.get("block", None)
-        block_index = transformer_options.get("block_index", 0)
-        transformer_patches = {}
-        transformer_patches_replace = {}
-
-        for k in transformer_options:
-            if k == "patches":
-                transformer_patches = transformer_options[k]
-            elif k == "patches_replace":
-                transformer_patches_replace = transformer_options[k]
-            else:
-                extra_options[k] = transformer_options[k]
+        block = None
+        block_index = 0
+        if "current_index" in transformer_options:
+            extra_options["transformer_index"] = transformer_options["current_index"]
+        if "block_index" in transformer_options:
+            block_index = transformer_options["block_index"]
+            extra_options["block_index"] = block_index
+        if "original_shape" in transformer_options:
+            extra_options["original_shape"] = transformer_options["original_shape"]
+        if "block" in transformer_options:
+            block = transformer_options["block"]
+            extra_options["block"] = block
+        if "cond_or_uncond" in transformer_options:
+            extra_options["cond_or_uncond"] = transformer_options["cond_or_uncond"]
+        if "patches" in transformer_options:
+            transformer_patches = transformer_options["patches"]
+        else:
+            transformer_patches = {}
 
         extra_options["n_heads"] = self.n_heads
         extra_options["dim_head"] = self.d_head
 
-        if self.ff_in:
-            x_skip = x
-            x = self.ff_in(self.norm_in(x))
-            if self.is_res:
-                x += x_skip
+        if "patches_replace" in transformer_options:
+            transformer_patches_replace = transformer_options["patches_replace"]
+        else:
+            transformer_patches_replace = {}
 
         n = self.norm1(x)
         if self.disable_self_attn:
@@ -510,34 +478,31 @@ class BasicTransformerBlock(nn.Module):
             for p in patch:
                 x = p(x, extra_options)
 
-        if self.attn2 is not None:
-            n = self.norm2(x)
-            if self.switch_temporal_ca_to_sa:
-                context_attn2 = n
-            else:
-                context_attn2 = context
-            value_attn2 = None
-            if "attn2_patch" in transformer_patches:
-                patch = transformer_patches["attn2_patch"]
+        n = self.norm2(x)
+
+        context_attn2 = context
+        value_attn2 = None
+        if "attn2_patch" in transformer_patches:
+            patch = transformer_patches["attn2_patch"]
+            value_attn2 = context_attn2
+            for p in patch:
+                n, context_attn2, value_attn2 = p(n, context_attn2, value_attn2, extra_options)
+
+        attn2_replace_patch = transformer_patches_replace.get("attn2", {})
+        block_attn2 = transformer_block
+        if block_attn2 not in attn2_replace_patch:
+            block_attn2 = block
+
+        if block_attn2 in attn2_replace_patch:
+            if value_attn2 is None:
                 value_attn2 = context_attn2
-                for p in patch:
-                    n, context_attn2, value_attn2 = p(n, context_attn2, value_attn2, extra_options)
-
-            attn2_replace_patch = transformer_patches_replace.get("attn2", {})
-            block_attn2 = transformer_block
-            if block_attn2 not in attn2_replace_patch:
-                block_attn2 = block
-
-            if block_attn2 in attn2_replace_patch:
-                if value_attn2 is None:
-                    value_attn2 = context_attn2
-                n = self.attn2.to_q(n)
-                context_attn2 = self.attn2.to_k(context_attn2)
-                value_attn2 = self.attn2.to_v(value_attn2)
-                n = attn2_replace_patch[block_attn2](n, context_attn2, value_attn2, extra_options)
-                n = self.attn2.to_out(n)
-            else:
-                n = self.attn2(n, context=context_attn2, value=value_attn2)
+            n = self.attn2.to_q(n)
+            context_attn2 = self.attn2.to_k(context_attn2)
+            value_attn2 = self.attn2.to_v(value_attn2)
+            n = attn2_replace_patch[block_attn2](n, context_attn2, value_attn2, extra_options)
+            n = self.attn2.to_out(n)
+        else:
+            n = self.attn2(n, context=context_attn2, value=value_attn2)
 
         if "attn2_output_patch" in transformer_patches:
             patch = transformer_patches["attn2_output_patch"]
@@ -545,12 +510,7 @@ class BasicTransformerBlock(nn.Module):
                 n = p(n, extra_options)
 
         x += n
-        if self.is_res:
-            x_skip = x
-        x = self.ff(self.norm3(x))
-        if self.is_res:
-            x += x_skip
-
+        x = self.ff(self.norm3(x)) + x
         return x
 
 
@@ -566,13 +526,13 @@ class SpatialTransformer(nn.Module):
     def __init__(self, in_channels, n_heads, d_head,
                  depth=1, dropout=0., context_dim=None,
                  disable_self_attn=False, use_linear=False,
-                 use_checkpoint=True, dtype=None, device=None, operations=ops):
+                 use_checkpoint=True, dtype=None, device=None, operations=sdcfy.ops):
         super().__init__()
         if exists(context_dim) and not isinstance(context_dim, list):
             context_dim = [context_dim] * depth
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
-        self.norm = operations.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True, dtype=dtype, device=device)
+        self.norm = Normalize(in_channels, dtype=dtype, device=device)
         if not use_linear:
             self.proj_in = operations.Conv2d(in_channels,
                                      inner_dim,
@@ -617,165 +577,4 @@ class SpatialTransformer(nn.Module):
         if not self.use_linear:
             x = self.proj_out(x)
         return x + x_in
-
-
-class SpatialVideoTransformer(SpatialTransformer):
-    def __init__(
-        self,
-        in_channels,
-        n_heads,
-        d_head,
-        depth=1,
-        dropout=0.0,
-        use_linear=False,
-        context_dim=None,
-        use_spatial_context=False,
-        timesteps=None,
-        merge_strategy: str = "fixed",
-        merge_factor: float = 0.5,
-        time_context_dim=None,
-        ff_in=False,
-        checkpoint=False,
-        time_depth=1,
-        disable_self_attn=False,
-        disable_temporal_crossattention=False,
-        max_time_embed_period: int = 10000,
-        dtype=None, device=None, operations=ops
-    ):
-        super().__init__(
-            in_channels,
-            n_heads,
-            d_head,
-            depth=depth,
-            dropout=dropout,
-            use_checkpoint=checkpoint,
-            context_dim=context_dim,
-            use_linear=use_linear,
-            disable_self_attn=disable_self_attn,
-            dtype=dtype, device=device, operations=operations
-        )
-        self.time_depth = time_depth
-        self.depth = depth
-        self.max_time_embed_period = max_time_embed_period
-
-        time_mix_d_head = d_head
-        n_time_mix_heads = n_heads
-
-        time_mix_inner_dim = int(time_mix_d_head * n_time_mix_heads)
-
-        inner_dim = n_heads * d_head
-        if use_spatial_context:
-            time_context_dim = context_dim
-
-        self.time_stack = nn.ModuleList(
-            [
-                BasicTransformerBlock(
-                    inner_dim,
-                    n_time_mix_heads,
-                    time_mix_d_head,
-                    dropout=dropout,
-                    context_dim=time_context_dim,
-                    # timesteps=timesteps,
-                    checkpoint=checkpoint,
-                    ff_in=ff_in,
-                    inner_dim=time_mix_inner_dim,
-                    disable_self_attn=disable_self_attn,
-                    disable_temporal_crossattention=disable_temporal_crossattention,
-                    dtype=dtype, device=device, operations=operations
-                )
-                for _ in range(self.depth)
-            ]
-        )
-
-        assert len(self.time_stack) == len(self.transformer_blocks)
-
-        self.use_spatial_context = use_spatial_context
-        self.in_channels = in_channels
-
-        time_embed_dim = self.in_channels * 4
-        self.time_pos_embed = nn.Sequential(
-            operations.Linear(self.in_channels, time_embed_dim, dtype=dtype, device=device),
-            nn.SiLU(),
-            operations.Linear(time_embed_dim, self.in_channels, dtype=dtype, device=device),
-        )
-
-        self.time_mixer = AlphaBlender(
-            alpha=merge_factor, merge_strategy=merge_strategy
-        )
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        context: Optional[torch.Tensor] = None,
-        time_context: Optional[torch.Tensor] = None,
-        timesteps: Optional[int] = None,
-        image_only_indicator: Optional[torch.Tensor] = None,
-        transformer_options={}
-    ) -> torch.Tensor:
-        _, _, h, w = x.shape
-        x_in = x
-        spatial_context = None
-        if exists(context):
-            spatial_context = context
-
-        if self.use_spatial_context:
-            assert (
-                context.ndim == 3
-            ), f"n dims of spatial context should be 3 but are {context.ndim}"
-
-            if time_context is None:
-                time_context = context
-            time_context_first_timestep = time_context[::timesteps]
-            time_context = repeat(
-                time_context_first_timestep, "b ... -> (b n) ...", n=h * w
-            )
-        elif time_context is not None and not self.use_spatial_context:
-            time_context = repeat(time_context, "b ... -> (b n) ...", n=h * w)
-            if time_context.ndim == 2:
-                time_context = rearrange(time_context, "b c -> b 1 c")
-
-        x = self.norm(x)
-        if not self.use_linear:
-            x = self.proj_in(x)
-        x = rearrange(x, "b c h w -> b (h w) c")
-        if self.use_linear:
-            x = self.proj_in(x)
-
-        num_frames = torch.arange(timesteps, device=x.device)
-        num_frames = repeat(num_frames, "t -> b t", b=x.shape[0] // timesteps)
-        num_frames = rearrange(num_frames, "b t -> (b t)")
-        t_emb = timestep_embedding(num_frames, self.in_channels, repeat_only=False, max_period=self.max_time_embed_period).to(x.dtype)
-        emb = self.time_pos_embed(t_emb)
-        emb = emb[:, None, :]
-
-        for it_, (block, mix_block) in enumerate(
-            zip(self.transformer_blocks, self.time_stack)
-        ):
-            transformer_options["block_index"] = it_
-            x = block(
-                x,
-                context=spatial_context,
-                transformer_options=transformer_options,
-            )
-
-            x_mix = x
-            x_mix = x_mix + emb
-
-            B, S, C = x_mix.shape
-            x_mix = rearrange(x_mix, "(b t) s c -> (b s) t c", t=timesteps)
-            x_mix = mix_block(x_mix, context=time_context) #TODO: transformer_options
-            x_mix = rearrange(
-                x_mix, "(b s) t c -> (b t) s c", s=S, b=B // timesteps, c=C, t=timesteps
-            )
-
-            x = self.time_mixer(x_spatial=x, x_temporal=x_mix, image_only_indicator=image_only_indicator)
-
-        if self.use_linear:
-            x = self.proj_out(x)
-        x = rearrange(x, "b (h w) c -> b c h w", h=h, w=w)
-        if not self.use_linear:
-            x = self.proj_out(x)
-        out = x + x_in
-        return out
-
 

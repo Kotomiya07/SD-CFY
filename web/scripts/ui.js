@@ -67,7 +67,7 @@ function dragElement(dragEl, settings) {
 	}).observe(dragEl);
 
 	function ensureInBounds() {
-		if (dragEl.classList.contains("comfy-menu-manual-pos")) {
+		if (dragEl.classList.contains("sdcfy-menu-manual-pos")) {
 			newPosX = Math.min(document.body.clientWidth - dragEl.clientWidth, Math.max(0, dragEl.offsetLeft));
 			newPosY = Math.min(document.body.clientHeight - dragEl.clientHeight, Math.max(0, dragEl.offsetTop));
 
@@ -142,7 +142,7 @@ function dragElement(dragEl, settings) {
 		e = e || window.event;
 		e.preventDefault();
 
-		dragEl.classList.add("comfy-menu-manual-pos");
+		dragEl.classList.add("sdcfy-menu-manual-pos");
 
 		// calculate the new cursor position:
 		posDiffX = e.clientX - posStartX;
@@ -169,8 +169,8 @@ function dragElement(dragEl, settings) {
 
 export class ComfyDialog {
 	constructor() {
-		this.element = $el("div.comfy-modal", {parent: document.body}, [
-			$el("div.comfy-modal-content", [$el("p", {$: (p) => (this.textElement = p)}), ...this.createButtons()]),
+		this.element = $el("div.sdcfy-modal", {parent: document.body}, [
+			$el("div.sdcfy-modal-content", [$el("p", {$: (p) => (this.textElement = p)}), ...this.createButtons()]),
 		]);
 	}
 
@@ -202,10 +202,10 @@ class ComfySettingsDialog extends ComfyDialog {
 	constructor() {
 		super();
 		this.element = $el("dialog", {
-			id: "comfy-settings-dialog",
+			id: "sdcfy-settings-dialog",
 			parent: document.body,
 		}, [
-			$el("table.comfy-modal-content.comfy-table", [
+			$el("table.sdcfy-modal-content.sdcfy-table", [
 				$el("caption", {textContent: "Settings"}),
 				$el("tbody", {$: (tbody) => (this.textElement = tbody)}),
 				$el("button", {
@@ -269,7 +269,7 @@ class ComfySettingsDialog extends ComfyDialog {
 				const labelCell = $el("td", [
 					$el("label", {
 						for: htmlID,
-						classList: [tooltip !== "" ? "comfy-tooltip-indicator" : ""],
+						classList: [tooltip !== "" ? "sdcfy-tooltip-indicator" : ""],
 						textContent: name,
 					})
 				]);
@@ -437,7 +437,7 @@ class ComfyList {
 		this.#text = text;
 		this.#type = type || text.toLowerCase();
 		this.#reverse = reverse || false;
-		this.element = $el("div.comfy-list");
+		this.element = $el("div.sdcfy-list");
 		this.element.style.display = "none";
 	}
 
@@ -452,7 +452,7 @@ class ComfyList {
 				$el("h4", {
 					textContent: section,
 				}),
-				$el("div.comfy-list-items", [
+				$el("div.sdcfy-list-items", [
 					...(this.#reverse ? items[section].reverse() : items[section]).map((item) => {
 						// Allow items to specify a custom remove action (e.g. for interrupt current prompt)
 						const removeAction = item.remove || {
@@ -480,7 +480,7 @@ class ComfyList {
 					}),
 				]),
 			]),
-			$el("div.comfy-list-actions", [
+			$el("div.sdcfy-list-actions", [
 				$el("button", {
 					textContent: "Clear " + this.#text,
 					onclick: async () => {
@@ -597,7 +597,7 @@ export class ComfyUI {
 		});
 
 		const fileInput = $el("input", {
-			id: "comfy-file-input",
+			id: "sdcfy-file-input",
 			type: "file",
 			accept: ".json,image/png,.latent,.safetensors",
 			style: {display: "none"},
@@ -607,7 +607,7 @@ export class ComfyUI {
 			},
 		});
 
-		this.menuContainer = $el("div.comfy-menu", {parent: document.body}, [
+		this.menuContainer = $el("div.sdcfy-menu", {parent: document.body}, [
 			$el("div.drag-handle", {
 				style: {
 					overflow: "hidden",
@@ -618,9 +618,9 @@ export class ComfyUI {
 			}, [
 				$el("span.drag-handle"),
 				$el("span", {$: (q) => (this.queueSize = q)}),
-				$el("button.comfy-settings-btn", {textContent: "⚙️", onclick: () => this.settings.show()}),
+				$el("button.sdcfy-settings-btn", {textContent: "⚙️", onclick: () => this.settings.show()}),
 			]),
-			$el("button.comfy-queue-btn", {
+			$el("button.sdcfy-queue-btn", {
 				id: "queue-button",
 				textContent: "Queue Prompt",
 				onclick: () => app.queuePrompt(0, this.batchCount),
@@ -680,7 +680,7 @@ export class ComfyUI {
 					}),
 				])
 			]),
-			$el("div.comfy-menu-btns", [
+			$el("div.sdcfy-menu-btns", [
 				$el("button", {
 					id: "queue-front-button",
 					textContent: "Queue Front",
@@ -688,7 +688,7 @@ export class ComfyUI {
 				}),
 				$el("button", {
 					$: (b) => (this.queue.button = b),
-					id: "comfy-view-queue-button",
+					id: "sdcfy-view-queue-button",
 					textContent: "View Queue",
 					onclick: () => {
 						this.history.hide();
@@ -697,7 +697,7 @@ export class ComfyUI {
 				}),
 				$el("button", {
 					$: (b) => (this.history.button = b),
-					id: "comfy-view-history-button",
+					id: "sdcfy-view-history-button",
 					textContent: "View History",
 					onclick: () => {
 						this.queue.hide();
@@ -708,7 +708,7 @@ export class ComfyUI {
 			this.queue.element,
 			this.history.element,
 			$el("button", {
-				id: "comfy-save-button",
+				id: "sdcfy-save-button",
 				textContent: "Save",
 				onclick: () => {
 					let filename = "workflow.json";
@@ -738,7 +738,7 @@ export class ComfyUI {
 				},
 			}),
 			$el("button", {
-				id: "comfy-dev-save-api-button",
+				id: "sdcfy-dev-save-api-button",
 				textContent: "Save (API Format)",
 				style: {width: "100%", display: "none"},
 				onclick: () => {
@@ -768,15 +768,15 @@ export class ComfyUI {
 					});
 				},
 			}),
-			$el("button", {id: "comfy-load-button", textContent: "Load", onclick: () => fileInput.click()}),
+			$el("button", {id: "sdcfy-load-button", textContent: "Load", onclick: () => fileInput.click()}),
 			$el("button", {
-				id: "comfy-refresh-button",
+				id: "sdcfy-refresh-button",
 				textContent: "Refresh",
 				onclick: () => app.refreshComboInNodes()
 			}),
-			$el("button", {id: "comfy-clipspace-button", textContent: "Clipspace", onclick: () => app.openClipspace()}),
+			$el("button", {id: "sdcfy-clipspace-button", textContent: "Clipspace", onclick: () => app.openClipspace()}),
 			$el("button", {
-				id: "comfy-clear-button", textContent: "Clear", onclick: () => {
+				id: "sdcfy-clear-button", textContent: "Clear", onclick: () => {
 					if (!confirmClear.value || confirm("Clear workflow?")) {
 						app.clean();
 						app.graph.clear();
@@ -784,7 +784,7 @@ export class ComfyUI {
 				}
 			}),
 			$el("button", {
-				id: "comfy-load-default-button", textContent: "Load Default", onclick: () => {
+				id: "sdcfy-load-default-button", textContent: "Load Default", onclick: () => {
 					if (!confirmClear.value || confirm("Load default workflow?")) {
 						app.loadGraphData()
 					}
@@ -797,7 +797,7 @@ export class ComfyUI {
 			name: "Enable Dev mode Options",
 			type: "boolean",
 			defaultValue: false,
-			onChange: function(value) { document.getElementById("comfy-dev-save-api-button").style.display = value ? "block" : "none"},
+			onChange: function(value) { document.getElementById("sdcfy-dev-save-api-button").style.display = value ? "block" : "none"},
 		});
 
 		dragElement(this.menuContainer, this.settings);

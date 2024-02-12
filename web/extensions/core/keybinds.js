@@ -18,11 +18,11 @@ app.registerExtension({
 			}
 
 			const modifierKeyIdMap = {
-				s: "#comfy-save-button",
-				o: "#comfy-file-input",
-				Backspace: "#comfy-clear-button",
-				Delete: "#comfy-clear-button",
-				d: "#comfy-load-default-button",
+				s: "#sdcfy-save-button",
+				o: "#sdcfy-file-input",
+				Backspace: "#sdcfy-clear-button",
+				Delete: "#sdcfy-clear-button",
+				d: "#sdcfy-load-default-button",
 			};
 
 			const modifierKeybindId = modifierKeyIdMap[event.key];
@@ -41,7 +41,7 @@ app.registerExtension({
 
 			// Close out of modals using escape
 			if (event.key === "Escape") {
-				const modals = document.querySelectorAll(".comfy-modal");
+				const modals = document.querySelectorAll(".sdcfy-modal");
 				const modal = Array.from(modals).find(modal => window.getComputedStyle(modal).getPropertyValue("display") !== "none");
 				if (modal) {
 					modal.style.display = "none";
@@ -53,9 +53,9 @@ app.registerExtension({
 			}
 
 			const keyIdMap = {
-				q: "#comfy-view-queue-button",
-				h: "#comfy-view-history-button",
-				r: "#comfy-refresh-button",
+				q: "#sdcfy-view-queue-button",
+				h: "#sdcfy-view-history-button",
+				r: "#sdcfy-refresh-button",
 			};
 
 			const buttonId = keyIdMap[event.key];

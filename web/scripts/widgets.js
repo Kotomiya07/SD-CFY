@@ -193,7 +193,7 @@ function addMultilineWidget(node, name, opts, app) {
 		},
 	};
 	widget.inputEl = document.createElement("textarea");
-	widget.inputEl.className = "comfy-multiline-input";
+	widget.inputEl.className = "sdcfy-multiline-input";
 	widget.inputEl.value = opts.defaultVal;
 	widget.inputEl.placeholder = opts.placeholder || "";
 	document.addEventListener("mousedown", function (event) {

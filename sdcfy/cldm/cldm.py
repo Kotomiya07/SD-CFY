@@ -53,8 +53,7 @@ class ControlNet(nn.Module):
         transformer_depth_middle=None,
         transformer_depth_output=None,
         device=None,
-        operations=sdcfy.ops.disable_weight_init,
-        **kwargs,
+        operations=sdcfy.ops,
     ):
         super().__init__()
         assert use_spatial_transformer == True, "use_spatial_transformer has to be true"
@@ -141,24 +140,24 @@ class ControlNet(nn.Module):
                 )
             ]
         )
-        self.zero_convs = nn.ModuleList([self.make_zero_conv(model_channels, operations=operations, dtype=self.dtype, device=device)])
+        self.zero_convs = nn.ModuleList([self.make_zero_conv(model_channels, operations=operations)])
 
         self.input_hint_block = TimestepEmbedSequential(
-                    operations.conv_nd(dims, hint_channels, 16, 3, padding=1, dtype=self.dtype, device=device),
+                    operations.conv_nd(dims, hint_channels, 16, 3, padding=1),
                     nn.SiLU(),
-                    operations.conv_nd(dims, 16, 16, 3, padding=1, dtype=self.dtype, device=device),
+                    operations.conv_nd(dims, 16, 16, 3, padding=1),
                     nn.SiLU(),
-                    operations.conv_nd(dims, 16, 32, 3, padding=1, stride=2, dtype=self.dtype, device=device),
+                    operations.conv_nd(dims, 16, 32, 3, padding=1, stride=2),
                     nn.SiLU(),
-                    operations.conv_nd(dims, 32, 32, 3, padding=1, dtype=self.dtype, device=device),
+                    operations.conv_nd(dims, 32, 32, 3, padding=1),
                     nn.SiLU(),
-                    operations.conv_nd(dims, 32, 96, 3, padding=1, stride=2, dtype=self.dtype, device=device),
+                    operations.conv_nd(dims, 32, 96, 3, padding=1, stride=2),
                     nn.SiLU(),
-                    operations.conv_nd(dims, 96, 96, 3, padding=1, dtype=self.dtype, device=device),
+                    operations.conv_nd(dims, 96, 96, 3, padding=1),
                     nn.SiLU(),
-                    operations.conv_nd(dims, 96, 256, 3, padding=1, stride=2, dtype=self.dtype, device=device),
+                    operations.conv_nd(dims, 96, 256, 3, padding=1, stride=2),
                     nn.SiLU(),
-                    operations.conv_nd(dims, 256, model_channels, 3, padding=1, dtype=self.dtype, device=device)
+                    zero_module(operations.conv_nd(dims, 256, model_channels, 3, padding=1))
         )
 
         self._feature_size = model_channels
@@ -206,7 +205,7 @@ class ControlNet(nn.Module):
                             )
                         )
                 self.input_blocks.append(TimestepEmbedSequential(*layers))
-                self.zero_convs.append(self.make_zero_conv(ch, operations=operations, dtype=self.dtype, device=device))
+                self.zero_convs.append(self.make_zero_conv(ch, operations=operations))
                 self._feature_size += ch
                 input_block_chans.append(ch)
             if level != len(channel_mult) - 1:
@@ -234,7 +233,7 @@ class ControlNet(nn.Module):
                 )
                 ch = out_ch
                 input_block_chans.append(ch)
-                self.zero_convs.append(self.make_zero_conv(ch, operations=operations, dtype=self.dtype, device=device))
+                self.zero_convs.append(self.make_zero_conv(ch, operations=operations))
                 ds *= 2
                 self._feature_size += ch
 
@@ -276,14 +275,14 @@ class ControlNet(nn.Module):
                 operations=operations
             )]
         self.middle_block = TimestepEmbedSequential(*mid_block)
-        self.middle_block_out = self.make_zero_conv(ch, operations=operations, dtype=self.dtype, device=device)
+        self.middle_block_out = self.make_zero_conv(ch, operations=operations)
         self._feature_size += ch
 
-    def make_zero_conv(self, channels, operations=None, dtype=None, device=None):
-        return TimestepEmbedSequential(operations.conv_nd(self.dims, channels, channels, 1, padding=0, dtype=dtype, device=device))
+    def make_zero_conv(self, channels, operations=None):
+        return TimestepEmbedSequential(zero_module(operations.conv_nd(self.dims, channels, channels, 1, padding=0)))
 
     def forward(self, x, hint, timesteps, context, y=None, **kwargs):
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).to(x.dtype)
+        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).to(self.dtype)
         emb = self.time_embed(t_emb)
 
         guided_hint = self.input_hint_block(hint, emb, context)
@@ -295,7 +294,7 @@ class ControlNet(nn.Module):
             assert y.shape[0] == x.shape[0]
             emb = emb + self.label_emb(y)
 
-        h = x
+        h = x.type(self.dtype)
         for module, zero_conv in zip(self.input_blocks, self.zero_convs):
             if guided_hint is not None:
                 h = module(h, emb, context)

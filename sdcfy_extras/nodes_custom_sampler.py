@@ -13,22 +13,15 @@ class BasicScheduler:
                     {"model": ("MODEL",),
                      "scheduler": (sdcfy.samplers.SCHEDULER_NAMES, ),
                      "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-                     "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                       }
                }
     RETURN_TYPES = ("SIGMAS",)
-    CATEGORY = "sampling/custom_sampling/schedulers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sigmas"
 
-    def get_sigmas(self, model, scheduler, steps, denoise):
-        total_steps = steps
-        if denoise < 1.0:
-            total_steps = int(steps/denoise)
-
-        sdcfy.model_management.load_models_gpu([model])
-        sigmas = sdcfy.samplers.calculate_sigmas_scheduler(model.model, scheduler, total_steps).cpu()
-        sigmas = sigmas[-(steps + 1):]
+    def get_sigmas(self, model, scheduler, steps):
+        sigmas = sdcfy.samplers.calculate_sigmas_scheduler(model.model, scheduler, steps).cpu()
         return (sigmas, )
 
 
@@ -43,7 +36,7 @@ class KarrasScheduler:
                     }
                }
     RETURN_TYPES = ("SIGMAS",)
-    CATEGORY = "sampling/custom_sampling/schedulers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sigmas"
 
@@ -61,7 +54,7 @@ class ExponentialScheduler:
                     }
                }
     RETURN_TYPES = ("SIGMAS",)
-    CATEGORY = "sampling/custom_sampling/schedulers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sigmas"
 
@@ -80,34 +73,12 @@ class PolyexponentialScheduler:
                     }
                }
     RETURN_TYPES = ("SIGMAS",)
-    CATEGORY = "sampling/custom_sampling/schedulers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sigmas"
 
     def get_sigmas(self, steps, sigma_max, sigma_min, rho):
         sigmas = k_diffusion_sampling.get_sigmas_polyexponential(n=steps, sigma_min=sigma_min, sigma_max=sigma_max, rho=rho)
-        return (sigmas, )
-
-class SDTurboScheduler:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {"required":
-                    {"model": ("MODEL",),
-                     "steps": ("INT", {"default": 1, "min": 1, "max": 10}),
-                     "denoise": ("FLOAT", {"default": 1.0, "min": 0, "max": 1.0, "step": 0.01}),
-                      }
-               }
-    RETURN_TYPES = ("SIGMAS",)
-    CATEGORY = "sampling/custom_sampling/schedulers"
-
-    FUNCTION = "get_sigmas"
-
-    def get_sigmas(self, model, steps, denoise):
-        start_step = 10 - int(10 * denoise)
-        timesteps = torch.flip(torch.arange(1, 11) * 100 - 1, (0,))[start_step:start_step + steps]
-        sdcfy.model_management.load_models_gpu([model])
-        sigmas = model.model.model_sampling.sigma(timesteps)
-        sigmas = torch.cat([sigmas, sigmas.new_zeros([1])])
         return (sigmas, )
 
 class VPScheduler:
@@ -121,7 +92,7 @@ class VPScheduler:
                     }
                }
     RETURN_TYPES = ("SIGMAS",)
-    CATEGORY = "sampling/custom_sampling/schedulers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sigmas"
 
@@ -138,7 +109,7 @@ class SplitSigmas:
                      }
                 }
     RETURN_TYPES = ("SIGMAS","SIGMAS")
-    CATEGORY = "sampling/custom_sampling/sigmas"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sigmas"
 
@@ -146,24 +117,6 @@ class SplitSigmas:
         sigmas1 = sigmas[:step + 1]
         sigmas2 = sigmas[step:]
         return (sigmas1, sigmas2)
-
-class FlipSigmas:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {"required":
-                    {"sigmas": ("SIGMAS", ),
-                     }
-                }
-    RETURN_TYPES = ("SIGMAS",)
-    CATEGORY = "sampling/custom_sampling/sigmas"
-
-    FUNCTION = "get_sigmas"
-
-    def get_sigmas(self, sigmas):
-        sigmas = sigmas.flip(0)
-        if sigmas[0] == 0:
-            sigmas[0] = 0.0001
-        return (sigmas,)
 
 class KSamplerSelect:
     @classmethod
@@ -173,12 +126,12 @@ class KSamplerSelect:
                       }
                }
     RETURN_TYPES = ("SAMPLER",)
-    CATEGORY = "sampling/custom_sampling/samplers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sampler"
 
     def get_sampler(self, sampler_name):
-        sampler = sdcfy.samplers.sampler_object(sampler_name)
+        sampler = sdcfy.samplers.sampler_class(sampler_name)()
         return (sampler, )
 
 class SamplerDPMPP_2M_SDE:
@@ -192,7 +145,7 @@ class SamplerDPMPP_2M_SDE:
                       }
                }
     RETURN_TYPES = ("SAMPLER",)
-    CATEGORY = "sampling/custom_sampling/samplers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sampler"
 
@@ -201,7 +154,7 @@ class SamplerDPMPP_2M_SDE:
             sampler_name = "dpmpp_2m_sde"
         else:
             sampler_name = "dpmpp_2m_sde_gpu"
-        sampler = sdcfy.samplers.ksampler(sampler_name, {"eta": eta, "s_noise": s_noise, "solver_type": solver_type})
+        sampler = sdcfy.samplers.ksampler(sampler_name, {"eta": eta, "s_noise": s_noise, "solver_type": solver_type})()
         return (sampler, )
 
 
@@ -216,7 +169,7 @@ class SamplerDPMPP_SDE:
                       }
                }
     RETURN_TYPES = ("SAMPLER",)
-    CATEGORY = "sampling/custom_sampling/samplers"
+    CATEGORY = "sampling/custom_sampling"
 
     FUNCTION = "get_sampler"
 
@@ -225,7 +178,7 @@ class SamplerDPMPP_SDE:
             sampler_name = "dpmpp_sde"
         else:
             sampler_name = "dpmpp_sde_gpu"
-        sampler = sdcfy.samplers.ksampler(sampler_name, {"eta": eta, "s_noise": s_noise, "r": r})
+        sampler = sdcfy.samplers.ksampler(sampler_name, {"eta": eta, "s_noise": s_noise, "r": r})()
         return (sampler, )
 
 class SamplerCustom:
@@ -235,7 +188,7 @@ class SamplerCustom:
                     {"model": ("MODEL",),
                     "add_noise": ("BOOLEAN", {"default": True}),
                     "noise_seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
-                    "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step":0.1, "round": 0.01}),
+                    "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step":0.5, "round": 0.01}),
                     "positive": ("CONDITIONING", ),
                     "negative": ("CONDITIONING", ),
                     "sampler": ("SAMPLER", ),
@@ -281,15 +234,13 @@ class SamplerCustom:
 
 NODE_CLASS_MAPPINGS = {
     "SamplerCustom": SamplerCustom,
-    "BasicScheduler": BasicScheduler,
     "KarrasScheduler": KarrasScheduler,
     "ExponentialScheduler": ExponentialScheduler,
     "PolyexponentialScheduler": PolyexponentialScheduler,
     "VPScheduler": VPScheduler,
-    "SDTurboScheduler": SDTurboScheduler,
     "KSamplerSelect": KSamplerSelect,
     "SamplerDPMPP_2M_SDE": SamplerDPMPP_2M_SDE,
     "SamplerDPMPP_SDE": SamplerDPMPP_SDE,
+    "BasicScheduler": BasicScheduler,
     "SplitSigmas": SplitSigmas,
-    "FlipSigmas": FlipSigmas,
 }

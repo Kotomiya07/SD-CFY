@@ -21,7 +21,7 @@ a111:
     controlnet: models/ControlNet
 
 #config for comfyui
-#your base path should be either an existing comfy install or a central folder where you store all of your models, loras, etc.
+#your base path should be either an existing sdcfy install or a central folder where you store all of your models, loras, etc.
 
 #comfyui:
 #     base_path: path/to/comfyui/

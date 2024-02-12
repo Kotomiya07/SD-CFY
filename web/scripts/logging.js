@@ -3,21 +3,21 @@ import { api } from "./api.js";
 
 $el("style", {
 	textContent: `
-        .comfy-logging-logs {
+        .sdcfy-logging-logs {
             display: grid;
             color: var(--fg-color);
             white-space: pre-wrap;
         }
-        .comfy-logging-log {
+        .sdcfy-logging-log {
             display: contents;
         }
-        .comfy-logging-title {
+        .sdcfy-logging-title {
             background: var(--tr-even-bg-color);
             font-weight: bold;
             margin-bottom: 5px;
             text-align: center;
         }
-        .comfy-logging-log div {
+        .sdcfy-logging-log div {
             background: var(--row-bg);
             padding: 5px;
         }
@@ -175,13 +175,13 @@ class ComfyLoggingDialog extends ComfyDialog {
 		};
 		const keys = Object.keys(cols);
 		const headers = Object.values(cols).map((title) =>
-			$el("div.comfy-logging-title", {
+			$el("div.sdcfy-logging-title", {
 				textContent: title,
 			})
 		);
 		const rows = entries.map((entry, i) => {
 			return $el(
-				"div.comfy-logging-log",
+				"div.sdcfy-logging-log",
 				{
 					$: (el) => el.style.setProperty("--row-bg", `var(--tr-${i % 2 ? "even" : "odd"}-bg-color)`),
 				},
@@ -209,7 +209,7 @@ class ComfyLoggingDialog extends ComfyDialog {
 		});
 
 		const grid = $el(
-			"div.comfy-logging-logs",
+			"div.sdcfy-logging-logs",
 			{
 				style: {
 					gridTemplateColumns: `repeat(${headers.length}, 1fr)`,

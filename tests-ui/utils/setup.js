@@ -14,7 +14,7 @@ function* walkSync(dir) {
 }
 
 /**
- * @typedef { import("../../web/types/comfy").ComfyObjectInfo } ComfyObjectInfo
+ * @typedef { import("../../web/types/sdcfy").ComfyObjectInfo } ComfyObjectInfo
  */
 
 /**

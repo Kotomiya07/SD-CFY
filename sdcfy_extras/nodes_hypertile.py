@@ -2,10 +2,9 @@
 
 import math
 from einops import rearrange
-# Use torch rng for consistency across generations
-from torch import randint
+import random
 
-def random_divisor(value: int, min_value: int, /, max_options: int = 1) -> int:
+def random_divisor(value: int, min_value: int, /, max_options: int = 1, counter = 0) -> int:
     min_value = min(min_value, value)
 
     # All big divisors of value (inclusive)
@@ -13,10 +12,8 @@ def random_divisor(value: int, min_value: int, /, max_options: int = 1) -> int:
 
     ns = [value // i for i in divisors[:max_options]]  # has at least 1 element
 
-    if len(ns) - 1 > 0:
-        idx = randint(low=0, high=len(ns) - 1, size=(1,)).item()
-    else:
-        idx = 0
+    random.seed(counter)
+    idx = random.randint(0, len(ns) - 1)
 
     return ns[idx]
 
@@ -32,31 +29,34 @@ class HyperTile:
     RETURN_TYPES = ("MODEL",)
     FUNCTION = "patch"
 
-    CATEGORY = "model_patches"
+    CATEGORY = "_for_testing"
 
     def patch(self, model, tile_size, swap_size, max_depth, scale_depth):
         model_channels = model.model.model_config.unet_config["model_channels"]
 
+        apply_to = set()
+        temp = model_channels
+        for x in range(max_depth + 1):
+            apply_to.add(temp)
+            temp *= 2
+
         latent_tile_size = max(32, tile_size) // 8
         self.temp = None
+        self.counter = 1
 
         def hypertile_in(q, k, v, extra_options):
-            model_chans = q.shape[-2]
-            orig_shape = extra_options['original_shape']
-            apply_to = []
-            for i in range(max_depth + 1):
-                apply_to.append((orig_shape[-2] / (2 ** i)) * (orig_shape[-1] / (2 ** i)))
-
-            if model_chans in apply_to:
+            if q.shape[-1] in apply_to:
                 shape = extra_options["original_shape"]
                 aspect_ratio = shape[-1] / shape[-2]
 
                 hw = q.size(1)
                 h, w = round(math.sqrt(hw * aspect_ratio)), round(math.sqrt(hw / aspect_ratio))
 
-                factor = (2 ** apply_to.index(model_chans)) if scale_depth else 1
-                nh = random_divisor(h, latent_tile_size * factor, swap_size)
-                nw = random_divisor(w, latent_tile_size * factor, swap_size)
+                factor = 2**((q.shape[-1] // model_channels) - 1) if scale_depth else 1
+                nh = random_divisor(h, latent_tile_size * factor, swap_size, self.counter)
+                self.counter += 1
+                nw = random_divisor(w, latent_tile_size * factor, swap_size, self.counter)
+                self.counter += 1
 
                 if nh * nw > 1:
                     q = rearrange(q, "b (nh h nw w) c -> (b nh nw) (h w) c", h=h // nh, w=w // nw, nh=nh, nw=nw)

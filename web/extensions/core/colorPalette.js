@@ -50,8 +50,8 @@ const colorPalettes = {
 			"comfy_base": {
 				"fg-color": "#fff",
 				"bg-color": "#202020",
-				"comfy-menu-bg": "#353535",
-				"comfy-input-bg": "#222",
+				"sdcfy-menu-bg": "#353535",
+				"sdcfy-input-bg": "#222",
 				"input-text": "#ddd",
 				"descrip-text": "#999",
 				"drag-text": "#ccc",
@@ -107,8 +107,8 @@ const colorPalettes = {
 			"comfy_base": {
 				"fg-color": "#222",
 				"bg-color": "#DDD",
-				"comfy-menu-bg": "#F5F5F5",
-				"comfy-input-bg": "#C9C9C9",
+				"sdcfy-menu-bg": "#F5F5F5",
+				"sdcfy-input-bg": "#C9C9C9",
 				"input-text": "#222",
 				"descrip-text": "#444",
 				"drag-text": "#555",
@@ -163,8 +163,8 @@ const colorPalettes = {
 			"comfy_base": {
 				"fg-color": "#fdf6e3", // Base3
 				"bg-color": "#002b36", // Base03
-				"comfy-menu-bg": "#073642", // Base02
-				"comfy-input-bg": "#002b36", // Base03
+				"sdcfy-menu-bg": "#073642", // Base02
+				"sdcfy-input-bg": "#002b36", // Base03
 				"input-text": "#93a1a1", // Base1
 				"descrip-text": "#586e75", // Base01
 				"drag-text": "#839496", // Base0
