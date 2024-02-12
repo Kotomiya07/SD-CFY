@@ -1782,7 +1782,7 @@ def load_custom_nodes():
         print()
 
 def init_custom_nodes():
-    extras_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy_extras")
+    extras_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sdcfy_extras")
     extras_files = [
         "nodes_latent.py",
         "nodes_hypernetwork.py",
