@@ -1,12 +1,12 @@
 import os
 
 from transformers import CLIPTokenizer
-import comfy.ops
+import sdcfy.ops
 import torch
 import traceback
 import zipfile
 from . import model_management
-import comfy.clip_model
+import sdcfy.clip_model
 import json
 
 def gen_empty_tokens(special_tokens, length):
@@ -66,7 +66,7 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         "hidden"
     ]
     def __init__(self, version="openai/clip-vit-large-patch14", device="cpu", max_length=77,
-                 freeze=True, layer="last", layer_idx=None, textmodel_json_config=None, dtype=None, model_class=comfy.clip_model.CLIPTextModel,
+                 freeze=True, layer="last", layer_idx=None, textmodel_json_config=None, dtype=None, model_class=sdcfy.clip_model.CLIPTextModel,
                  special_tokens={"start": 49406, "end": 49407, "pad": 49407}, layer_norm_hidden_state=True):  # clip-vit-base-patch32
         super().__init__()
         assert layer in self.LAYERS
@@ -77,7 +77,7 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         with open(textmodel_json_config) as f:
             config = json.load(f)
 
-        self.transformer = model_class(config, dtype, device, comfy.ops.manual_cast)
+        self.transformer = model_class(config, dtype, device, sdcfy.ops.manual_cast)
         self.num_layers = self.transformer.num_layers
 
         self.max_length = max_length

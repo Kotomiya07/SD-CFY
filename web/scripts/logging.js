@@ -1,23 +1,23 @@
-import { $el, ComfyDialog } from "./ui.js";
+import { $el, sdcfyDialog } from "./ui.js";
 import { api } from "./api.js";
 
 $el("style", {
 	textContent: `
-        .comfy-logging-logs {
+        .sdcfy-logging-logs {
             display: grid;
             color: var(--fg-color);
             white-space: pre-wrap;
         }
-        .comfy-logging-log {
+        .sdcfy-logging-log {
             display: contents;
         }
-        .comfy-logging-title {
+        .sdcfy-logging-title {
             background: var(--tr-even-bg-color);
             font-weight: bold;
             margin-bottom: 5px;
             text-align: center;
         }
-        .comfy-logging-log div {
+        .sdcfy-logging-log div {
             background: var(--row-bg);
             padding: 5px;
         }
@@ -82,7 +82,7 @@ const fileInput = $el("input", {
 	parent: document.body,
 });
 
-class ComfyLoggingDialog extends ComfyDialog {
+class sdcfyLoggingDialog extends sdcfyDialog {
 	constructor(logging) {
 		super();
 		this.logging = logging;
@@ -175,13 +175,13 @@ class ComfyLoggingDialog extends ComfyDialog {
 		};
 		const keys = Object.keys(cols);
 		const headers = Object.values(cols).map((title) =>
-			$el("div.comfy-logging-title", {
+			$el("div.sdcfy-logging-title", {
 				textContent: title,
 			})
 		);
 		const rows = entries.map((entry, i) => {
 			return $el(
-				"div.comfy-logging-log",
+				"div.sdcfy-logging-log",
 				{
 					$: (el) => el.style.setProperty("--row-bg", `var(--tr-${i % 2 ? "even" : "odd"}-bg-color)`),
 				},
@@ -209,7 +209,7 @@ class ComfyLoggingDialog extends ComfyDialog {
 		});
 
 		const grid = $el(
-			"div.comfy-logging-logs",
+			"div.sdcfy-logging-logs",
 			{
 				style: {
 					gridTemplateColumns: `repeat(${headers.length}, 1fr)`,
@@ -230,7 +230,7 @@ class ComfyLoggingDialog extends ComfyDialog {
 	}
 }
 
-export class ComfyLogging {
+export class sdcfyLogging {
 	/**
 	 * @type Array<{ source: string, type: string, timestamp: Date, message: any }>
 	 */
@@ -256,14 +256,14 @@ export class ComfyLogging {
 	constructor(app) {
 		this.app = app;
 
-		this.dialog = new ComfyLoggingDialog(this);
+		this.dialog = new sdcfyLoggingDialog(this);
 		this.addSetting();
 		this.catchUnhandled();
 		this.addInitData();
 	}
 
 	addSetting() {
-		const settingId = "Comfy.Logging.Enabled";
+		const settingId = "sdcfy.Logging.Enabled";
 		const htmlSettingId = settingId.replaceAll(".", "-");
 		const setting = this.app.ui.settings.addSetting({
 			id: settingId,

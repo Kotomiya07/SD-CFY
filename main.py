@@ -1,5 +1,5 @@
-import comfy.options
-comfy.options.enable_args_parsing()
+import sdcfy.options
+sdcfy.options.enable_args_parsing()
 
 import os
 import importlib.util
@@ -53,7 +53,7 @@ import shutil
 import threading
 import gc
 
-from comfy.cli_args import args
+from sdcfy.cli_args import args
 
 if os.name == "nt":
     import logging
@@ -70,18 +70,18 @@ if __name__ == "__main__":
 
     import cuda_malloc
 
-import comfy.utils
+import sdcfy.utils
 import yaml
 
 import execution
 import server
 from server import BinaryEventTypes
 from nodes import init_custom_nodes
-import comfy.model_management
+import sdcfy.model_management
 
 def cuda_malloc_warning():
-    device = comfy.model_management.get_torch_device()
-    device_name = comfy.model_management.get_torch_device_name(device)
+    device = sdcfy.model_management.get_torch_device()
+    device_name = sdcfy.model_management.get_torch_device_name(device)
     cuda_malloc_warning = False
     if "cudaMallocAsync" in device_name:
         for b in cuda_malloc.blacklist:
@@ -127,7 +127,7 @@ def prompt_worker(q, server):
         free_memory = flags.get("free_memory", False)
 
         if flags.get("unload_models", free_memory):
-            comfy.model_management.unload_all_models()
+            sdcfy.model_management.unload_all_models()
             need_gc = True
             last_gc_collect = 0
 
@@ -140,7 +140,7 @@ def prompt_worker(q, server):
             current_time = time.perf_counter()
             if (current_time - last_gc_collect) > gc_collect_interval:
                 gc.collect()
-                comfy.model_management.soft_empty_cache()
+                sdcfy.model_management.soft_empty_cache()
                 last_gc_collect = current_time
                 need_gc = False
 
@@ -150,13 +150,13 @@ async def run(server, address='', port=8188, verbose=True, call_on_start=None):
 
 def hijack_progress(server):
     def hook(value, total, preview_image):
-        comfy.model_management.throw_exception_if_processing_interrupted()
+        sdcfy.model_management.throw_exception_if_processing_interrupted()
         progress = {"value": value, "max": total, "prompt_id": server.last_prompt_id, "node": server.last_node_id}
 
         server.send_sync("progress", progress, server.client_id)
         if preview_image is not None:
             server.send_sync(BinaryEventTypes.UNENCODED_PREVIEW_IMAGE, preview_image, server.client_id)
-    comfy.utils.set_progress_bar_global_hook(hook)
+    sdcfy.utils.set_progress_bar_global_hook(hook)
 
 
 def cleanup_temp():

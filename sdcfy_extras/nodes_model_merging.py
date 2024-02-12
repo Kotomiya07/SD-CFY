@@ -1,13 +1,13 @@
-import comfy.sd
-import comfy.utils
-import comfy.model_base
-import comfy.model_management
+import sdcfy.sd
+import sdcfy.utils
+import sdcfy.model_base
+import sdcfy.model_management
 
 import folder_paths
 import json
 import os
 
-from comfy.cli_args import args
+from sdcfy.cli_args import args
 
 class ModelMergeSimple:
     @classmethod
@@ -128,9 +128,9 @@ def save_checkpoint(model, clip=None, vae=None, clip_vision=None, filename_prefi
     metadata = {}
 
     enable_modelspec = True
-    if isinstance(model.model, comfy.model_base.SDXL):
+    if isinstance(model.model, sdcfy.model_base.SDXL):
         metadata["modelspec.architecture"] = "stable-diffusion-xl-v1-base"
-    elif isinstance(model.model, comfy.model_base.SDXLRefiner):
+    elif isinstance(model.model, sdcfy.model_base.SDXLRefiner):
         metadata["modelspec.architecture"] = "stable-diffusion-xl-v1-refiner"
     else:
         enable_modelspec = False
@@ -145,9 +145,9 @@ def save_checkpoint(model, clip=None, vae=None, clip_vision=None, filename_prefi
     # "SD-v2-768-v", "SD-v2-unclip-l", "SD-v2-unclip-h",
     # "v2-inpainting"
 
-    if model.model.model_type == comfy.model_base.ModelType.EPS:
+    if model.model.model_type == sdcfy.model_base.ModelType.EPS:
         metadata["modelspec.predict_key"] = "epsilon"
-    elif model.model.model_type == comfy.model_base.ModelType.V_PREDICTION:
+    elif model.model.model_type == sdcfy.model_base.ModelType.V_PREDICTION:
         metadata["modelspec.predict_key"] = "v"
 
     if not args.disable_metadata:
@@ -159,7 +159,7 @@ def save_checkpoint(model, clip=None, vae=None, clip_vision=None, filename_prefi
     output_checkpoint = f"{filename}_{counter:05}_.safetensors"
     output_checkpoint = os.path.join(full_output_folder, output_checkpoint)
 
-    comfy.sd.save_checkpoint(output_checkpoint, model, clip, vae, clip_vision, metadata=metadata)
+    sdcfy.sd.save_checkpoint(output_checkpoint, model, clip, vae, clip_vision, metadata=metadata)
 
 class CheckpointSave:
     def __init__(self):
@@ -209,7 +209,7 @@ class CLIPSave:
                 for x in extra_pnginfo:
                     metadata[x] = json.dumps(extra_pnginfo[x])
 
-        comfy.model_management.load_models_gpu([clip.load_model()])
+        sdcfy.model_management.load_models_gpu([clip.load_model()])
         clip_sd = clip.get_sd()
 
         for prefix in ["clip_l.", "clip_g.", ""]:
@@ -233,9 +233,9 @@ class CLIPSave:
             output_checkpoint = f"{filename}_{counter:05}_.safetensors"
             output_checkpoint = os.path.join(full_output_folder, output_checkpoint)
 
-            current_clip_sd = comfy.utils.state_dict_prefix_replace(current_clip_sd, replace_prefix)
+            current_clip_sd = sdcfy.utils.state_dict_prefix_replace(current_clip_sd, replace_prefix)
 
-            comfy.utils.save_torch_file(current_clip_sd, output_checkpoint, metadata=metadata)
+            sdcfy.utils.save_torch_file(current_clip_sd, output_checkpoint, metadata=metadata)
         return {}
 
 class VAESave:
@@ -269,7 +269,7 @@ class VAESave:
         output_checkpoint = f"{filename}_{counter:05}_.safetensors"
         output_checkpoint = os.path.join(full_output_folder, output_checkpoint)
 
-        comfy.utils.save_torch_file(vae.get_sd(), output_checkpoint, metadata=metadata)
+        sdcfy.utils.save_torch_file(vae.get_sd(), output_checkpoint, metadata=metadata)
         return {}
 
 NODE_CLASS_MAPPINGS = {

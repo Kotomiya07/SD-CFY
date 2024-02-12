@@ -1,8 +1,8 @@
 import { $el } from "../ui.js";
 import { api } from "../api.js";
-import { ComfyDialog } from "./dialog.js";
+import { sdcfyDialog } from "./dialog.js";
 
-export class ComfySettingsDialog extends ComfyDialog {
+export class sdcfySettingsDialog extends sdcfyDialog {
 	constructor(app) {
 		super();
 		this.app = app;
@@ -11,15 +11,15 @@ export class ComfySettingsDialog extends ComfyDialog {
 		this.element = $el(
 			"dialog",
 			{
-				id: "comfy-settings-dialog",
+				id: "sdcfy-settings-dialog",
 				parent: document.body,
 			},
 			[
-				$el("table.comfy-modal-content.comfy-table", [
+				$el("table.sdcfy-modal-content.sdcfy-table", [
 					$el(
 						"caption",
 						{ textContent: "Settings" },
-						$el("button.comfy-btn", {
+						$el("button.sdcfy-btn", {
 							type: "button",
 							textContent: "\u00d7",
 							onclick: () => {
@@ -62,7 +62,7 @@ export class ComfySettingsDialog extends ComfyDialog {
 
 	getId(id) {
 		if (this.app.storageLocation === "browser") {
-			id = "Comfy.Settings." + id;
+			id = "sdcfy.Settings." + id;
 		}
 		return id;
 	}
@@ -82,7 +82,7 @@ export class ComfySettingsDialog extends ComfyDialog {
 
 	async setSettingValueAsync(id, value) {
 		const json = JSON.stringify(value);
-		localStorage["Comfy.Settings." + id] = json; // backwards compatibility for extensions keep setting in storage
+		localStorage["sdcfy.Settings." + id] = json; // backwards compatibility for extensions keep setting in storage
 
 		let oldValue = this.getSettingValue(id, undefined);
 		this.settingsValues[this.getId(id)] = value;
@@ -115,7 +115,7 @@ export class ComfySettingsDialog extends ComfyDialog {
 		if (value == null) {
 			if (this.app.isNewUserSession) {
 				// Check if we have a localStorage value but not a setting value and we are a new user
-				const localValue = localStorage["Comfy.Settings." + id];
+				const localValue = localStorage["sdcfy.Settings." + id];
 				if (localValue) {
 					value = JSON.parse(localValue);
 					this.setSettingValue(id, value); // Store on the server
@@ -152,7 +152,7 @@ export class ComfySettingsDialog extends ComfyDialog {
 				const labelCell = $el("td", [
 					$el("label", {
 						for: htmlID,
-						classList: [tooltip !== "" ? "comfy-tooltip-indicator" : ""],
+						classList: [tooltip !== "" ? "sdcfy-tooltip-indicator" : ""],
 						textContent: name,
 					}),
 				]);

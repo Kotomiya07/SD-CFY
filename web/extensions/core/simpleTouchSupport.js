@@ -4,7 +4,7 @@ let touchZooming;
 let touchCount = 0;
 
 app.registerExtension({
-	name: "Comfy.SimpleTouchSupport",
+	name: "sdcfy.SimpleTouchSupport",
 	setup() {
 		let zoomPos;
 		let touchTime;

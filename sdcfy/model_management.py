@@ -1,7 +1,7 @@
 import psutil
 from enum import Enum
-from comfy.cli_args import args
-import comfy.utils
+from sdcfy.cli_args import args
+import sdcfy.utils
 import torch
 import sys
 
@@ -304,14 +304,14 @@ class LoadedModel:
             print("loading in lowvram mode", lowvram_model_memory/(1024 * 1024))
             mem_counter = 0
             for m in self.real_model.modules():
-                if hasattr(m, "comfy_cast_weights"):
-                    m.prev_comfy_cast_weights = m.comfy_cast_weights
-                    m.comfy_cast_weights = True
+                if hasattr(m, "sdcfy_cast_weights"):
+                    m.prev_sdcfy_cast_weights = m.sdcfy_cast_weights
+                    m.sdcfy_cast_weights = True
                     module_mem = module_size(m)
                     if mem_counter + module_mem < lowvram_model_memory:
                         m.to(self.device)
                         mem_counter += module_mem
-                elif hasattr(m, "weight"): #only modules with comfy_cast_weights can be set to lowvram mode
+                elif hasattr(m, "weight"): #only modules with sdcfy_cast_weights can be set to lowvram mode
                     m.to(self.device)
                     mem_counter += module_size(m)
                     print("lowvram: loaded module regularly", m)
@@ -326,9 +326,9 @@ class LoadedModel:
     def model_unload(self):
         if self.model_accelerated:
             for m in self.real_model.modules():
-                if hasattr(m, "prev_comfy_cast_weights"):
-                    m.comfy_cast_weights = m.prev_comfy_cast_weights
-                    del m.prev_comfy_cast_weights
+                if hasattr(m, "prev_sdcfy_cast_weights"):
+                    m.sdcfy_cast_weights = m.prev_sdcfy_cast_weights
+                    del m.prev_sdcfy_cast_weights
 
             self.model_accelerated = False
 
@@ -505,7 +505,7 @@ def unet_manual_cast(weight_dtype, inference_device):
     if weight_dtype == torch.float32:
         return None
 
-    fp16_supported = comfy.model_management.should_use_fp16(inference_device, prioritize_performance=False)
+    fp16_supported = sdcfy.model_management.should_use_fp16(inference_device, prioritize_performance=False)
     if fp16_supported and weight_dtype == torch.float16:
         return None
 

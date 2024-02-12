@@ -1,10 +1,10 @@
 import torch
-from comfy.ldm.modules.diffusionmodules.openaimodel import UNetModel, Timestep
-from comfy.ldm.modules.encoders.noise_aug_modules import CLIPEmbeddingNoiseAugmentation
-from comfy.ldm.modules.diffusionmodules.upscaling import ImageConcatWithNoiseAugmentation
-import comfy.model_management
-import comfy.conds
-import comfy.ops
+from sdcfy.ldm.modules.diffusionmodules.openaimodel import UNetModel, Timestep
+from sdcfy.ldm.modules.encoders.noise_aug_modules import CLIPEmbeddingNoiseAugmentation
+from sdcfy.ldm.modules.diffusionmodules.upscaling import ImageConcatWithNoiseAugmentation
+import sdcfy.model_management
+import sdcfy.conds
+import sdcfy.ops
 from enum import Enum
 from . import utils
 
@@ -14,7 +14,7 @@ class ModelType(Enum):
     V_PREDICTION_EDM = 3
 
 
-from comfy.model_sampling import EPS, V_PREDICTION, ModelSamplingDiscrete, ModelSamplingContinuousEDM
+from sdcfy.model_sampling import EPS, V_PREDICTION, ModelSamplingDiscrete, ModelSamplingContinuousEDM
 
 
 def model_sampling(model_config, model_type):
@@ -45,9 +45,9 @@ class BaseModel(torch.nn.Module):
 
         if not unet_config.get("disable_unet_model_creation", False):
             if self.manual_cast_dtype is not None:
-                operations = comfy.ops.manual_cast
+                operations = sdcfy.ops.manual_cast
             else:
-                operations = comfy.ops.disable_weight_init
+                operations = sdcfy.ops.disable_weight_init
             self.diffusion_model = UNetModel(**unet_config, device=device, operations=operations)
         self.model_type = model_type
         self.model_sampling = model_sampling(model_config, model_type)
@@ -143,19 +143,19 @@ class BaseModel(torch.nn.Module):
                     elif ck == "masked_image":
                         cond_concat.append(blank_inpaint_image_like(noise))
             data = torch.cat(cond_concat, dim=1)
-            out['c_concat'] = comfy.conds.CONDNoiseShape(data)
+            out['c_concat'] = sdcfy.conds.CONDNoiseShape(data)
 
         adm = self.encode_adm(**kwargs)
         if adm is not None:
-            out['y'] = comfy.conds.CONDRegular(adm)
+            out['y'] = sdcfy.conds.CONDRegular(adm)
 
         cross_attn = kwargs.get("cross_attn", None)
         if cross_attn is not None:
-            out['c_crossattn'] = comfy.conds.CONDCrossAttn(cross_attn)
+            out['c_crossattn'] = sdcfy.conds.CONDCrossAttn(cross_attn)
 
         cross_attn_cnet = kwargs.get("cross_attn_controlnet", None)
         if cross_attn_cnet is not None:
-            out['crossattn_controlnet'] = comfy.conds.CONDCrossAttn(cross_attn_cnet)
+            out['crossattn_controlnet'] = sdcfy.conds.CONDCrossAttn(cross_attn_cnet)
 
         return out
 
@@ -209,13 +209,13 @@ class BaseModel(torch.nn.Module):
         self.inpaint_model = True
 
     def memory_required(self, input_shape):
-        if comfy.model_management.xformers_enabled() or comfy.model_management.pytorch_attention_flash_attention():
+        if sdcfy.model_management.xformers_enabled() or sdcfy.model_management.pytorch_attention_flash_attention():
             dtype = self.get_dtype()
             if self.manual_cast_dtype is not None:
                 dtype = self.manual_cast_dtype
             #TODO: this needs to be tweaked
             area = input_shape[0] * input_shape[2] * input_shape[3]
-            return (area * comfy.model_management.dtype_size(dtype) / 50) * (1024 * 1024)
+            return (area * sdcfy.model_management.dtype_size(dtype) / 50) * (1024 * 1024)
         else:
             #TODO: this formula might be too aggressive since I tweaked the sub-quad and split algorithms to use less memory.
             area = input_shape[0] * input_shape[2] * input_shape[3]
@@ -339,7 +339,7 @@ class SVD_img2vid(BaseModel):
         out = {}
         adm = self.encode_adm(**kwargs)
         if adm is not None:
-            out['y'] = comfy.conds.CONDRegular(adm)
+            out['y'] = sdcfy.conds.CONDRegular(adm)
 
         latent_image = kwargs.get("concat_latent_image", None)
         noise = kwargs.get("noise", None)
@@ -353,23 +353,23 @@ class SVD_img2vid(BaseModel):
 
         latent_image = utils.resize_to_batch_size(latent_image, noise.shape[0])
 
-        out['c_concat'] = comfy.conds.CONDNoiseShape(latent_image)
+        out['c_concat'] = sdcfy.conds.CONDNoiseShape(latent_image)
 
         cross_attn = kwargs.get("cross_attn", None)
         if cross_attn is not None:
-            out['c_crossattn'] = comfy.conds.CONDCrossAttn(cross_attn)
+            out['c_crossattn'] = sdcfy.conds.CONDCrossAttn(cross_attn)
 
         if "time_conditioning" in kwargs:
-            out["time_context"] = comfy.conds.CONDCrossAttn(kwargs["time_conditioning"])
+            out["time_context"] = sdcfy.conds.CONDCrossAttn(kwargs["time_conditioning"])
 
-        out['image_only_indicator'] = comfy.conds.CONDConstant(torch.zeros((1,), device=device))
-        out['num_video_frames'] = comfy.conds.CONDConstant(noise.shape[0])
+        out['image_only_indicator'] = sdcfy.conds.CONDConstant(torch.zeros((1,), device=device))
+        out['num_video_frames'] = sdcfy.conds.CONDConstant(noise.shape[0])
         return out
 
 class Stable_Zero123(BaseModel):
     def __init__(self, model_config, model_type=ModelType.EPS, device=None, cc_projection_weight=None, cc_projection_bias=None):
         super().__init__(model_config, model_type, device=device)
-        self.cc_projection = comfy.ops.manual_cast.Linear(cc_projection_weight.shape[1], cc_projection_weight.shape[0], dtype=self.get_dtype(), device=device)
+        self.cc_projection = sdcfy.ops.manual_cast.Linear(cc_projection_weight.shape[1], cc_projection_weight.shape[0], dtype=self.get_dtype(), device=device)
         self.cc_projection.weight.copy_(cc_projection_weight)
         self.cc_projection.bias.copy_(cc_projection_bias)
 
@@ -387,13 +387,13 @@ class Stable_Zero123(BaseModel):
 
         latent_image = utils.resize_to_batch_size(latent_image, noise.shape[0])
 
-        out['c_concat'] = comfy.conds.CONDNoiseShape(latent_image)
+        out['c_concat'] = sdcfy.conds.CONDNoiseShape(latent_image)
 
         cross_attn = kwargs.get("cross_attn", None)
         if cross_attn is not None:
             if cross_attn.shape[-1] != 768:
                 cross_attn = self.cc_projection(cross_attn)
-            out['c_crossattn'] = comfy.conds.CONDCrossAttn(cross_attn)
+            out['c_crossattn'] = sdcfy.conds.CONDCrossAttn(cross_attn)
         return out
 
 class SD_X4Upscaler(BaseModel):
@@ -424,6 +424,6 @@ class SD_X4Upscaler(BaseModel):
 
         image = utils.resize_to_batch_size(image, noise.shape[0])
 
-        out['c_concat'] = comfy.conds.CONDNoiseShape(image)
-        out['y'] = comfy.conds.CONDRegular(noise_level)
+        out['c_concat'] = sdcfy.conds.CONDNoiseShape(image)
+        out['y'] = sdcfy.conds.CONDRegular(noise_level)
         return out

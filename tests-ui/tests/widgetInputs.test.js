@@ -489,7 +489,7 @@ describe("widget inputs", () => {
 			expect(schedulerPrimitive.widgets.value.value).toBe("normal");
 			schedulerPrimitive.widgets.value.value = "simple";
 			expect(filePrimitive.widgets.value.value).toBe("SD-CFY");
-			filePrimitive.widgets.value.value = "ComfyTest";
+			filePrimitive.widgets.value.value = "sdcfyTest";
 
 			await checkBeforeAndAfterReload(graph, async () => {
 				widthPrimitive = graph.find(widthPrimitive);
@@ -503,7 +503,7 @@ describe("widget inputs", () => {
 				await checkOutput(graph, {
 					width: 1024,
 					scheduler: "simple",
-					filename_prefix: "ComfyTest",
+					filename_prefix: "sdcfyTest",
 				});
 			});
 		});

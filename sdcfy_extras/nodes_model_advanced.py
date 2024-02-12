@@ -1,9 +1,9 @@
 import folder_paths
-import comfy.sd
-import comfy.model_sampling
+import sdcfy.sd
+import sdcfy.model_sampling
 import torch
 
-class LCM(comfy.model_sampling.EPS):
+class LCM(sdcfy.model_sampling.EPS):
     def calculate_denoised(self, sigma, model_output, model_input):
         timestep = self.timestep(sigma).view(sigma.shape[:1] + (1,) * (model_output.ndim - 1))
         sigma = sigma.view(sigma.shape[:1] + (1,) * (model_output.ndim - 1))
@@ -17,7 +17,7 @@ class LCM(comfy.model_sampling.EPS):
 
         return c_out * x0 + c_skip * model_input
 
-class ModelSamplingDiscreteDistilled(comfy.model_sampling.ModelSamplingDiscrete):
+class ModelSamplingDiscreteDistilled(sdcfy.model_sampling.ModelSamplingDiscrete):
     original_timesteps = 50
 
     def __init__(self, model_config=None):
@@ -80,11 +80,11 @@ class ModelSamplingDiscrete:
     def patch(self, model, sampling, zsnr):
         m = model.clone()
 
-        sampling_base = comfy.model_sampling.ModelSamplingDiscrete
+        sampling_base = sdcfy.model_sampling.ModelSamplingDiscrete
         if sampling == "eps":
-            sampling_type = comfy.model_sampling.EPS
+            sampling_type = sdcfy.model_sampling.EPS
         elif sampling == "v_prediction":
-            sampling_type = comfy.model_sampling.V_PREDICTION
+            sampling_type = sdcfy.model_sampling.V_PREDICTION
         elif sampling == "lcm":
             sampling_type = LCM
             sampling_base = ModelSamplingDiscreteDistilled
@@ -117,11 +117,11 @@ class ModelSamplingContinuousEDM:
         m = model.clone()
 
         if sampling == "eps":
-            sampling_type = comfy.model_sampling.EPS
+            sampling_type = sdcfy.model_sampling.EPS
         elif sampling == "v_prediction":
-            sampling_type = comfy.model_sampling.V_PREDICTION
+            sampling_type = sdcfy.model_sampling.V_PREDICTION
 
-        class ModelSamplingAdvanced(comfy.model_sampling.ModelSamplingContinuousEDM, sampling_type):
+        class ModelSamplingAdvanced(sdcfy.model_sampling.ModelSamplingContinuousEDM, sampling_type):
             pass
 
         model_sampling = ModelSamplingAdvanced(model.model.model_config)

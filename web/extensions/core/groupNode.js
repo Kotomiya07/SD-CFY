@@ -1246,7 +1246,7 @@ function addConvertToGroupOptions() {
 	};
 }
 
-const id = "Comfy.GroupNode";
+const id = "sdcfy.GroupNode";
 let globalDefs;
 const ext = {
 	name: id,

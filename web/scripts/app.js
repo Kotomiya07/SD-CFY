@@ -1,5 +1,5 @@
-import { ComfyLogging } from "./logging.js";
-import { ComfyWidgets, initWidgets } from "./widgets.js";
+import { sdcfyLogging } from "./logging.js";
+import { sdcfyWidgets, initWidgets } from "./widgets.js";
 import { SD-CFY, $el } from "./ui.js";
 import { api } from "./api.js";
 import { defaultGraph } from "./defaultGraph.js";
@@ -7,7 +7,7 @@ import { getPngMetadata, getWebpMetadata, importA1111, getLatentMetadata } from 
 import { addDomClippingSetting } from "./domWidget.js";
 import { createImageHost, calculateImageGrid } from "./ui/imagePreview.js"
 
-export const ANIM_PREVIEW_WIDGET = "$$comfy_animation_preview"
+export const ANIM_PREVIEW_WIDGET = "$$sdcfy_animation_preview"
 
 function sanitizeNodeName(string) {
 	let entityMap = {
@@ -25,10 +25,10 @@ function sanitizeNodeName(string) {
 }
 
 /**
- * @typedef {import("types/comfy").ComfyExtension} ComfyExtension
+ * @typedef {import("types/sdcfy").sdcfyExtension} sdcfyExtension
  */
 
-export class ComfyApp {
+export class sdcfyApp {
 	/**
 	 * List of entries to queue
 	 * @type {{number: number, batchCount: number}[]}
@@ -51,11 +51,11 @@ export class ComfyApp {
 
 	constructor() {
 		this.ui = new SD-CFY(this);
-		this.logging = new ComfyLogging(this);
+		this.logging = new sdcfyLogging(this);
 
 		/**
 		 * List of extensions that are registered with the app
-		 * @type {ComfyExtension[]}
+		 * @type {sdcfyExtension[]}
 		 */
 		this.extensions = [];
 
@@ -79,7 +79,7 @@ export class ComfyApp {
 	}
 
 	getPreviewFormatParam() {
-		let preview_format = this.ui.settings.getSettingValue("Comfy.PreviewFormat");
+		let preview_format = this.ui.settings.getSettingValue("sdcfy.PreviewFormat");
 		if(preview_format)
 			return `&preview=${preview_format}`;
 		else
@@ -95,13 +95,13 @@ export class ComfyApp {
 	}
 
 	static onClipspaceEditorSave() {
-		if(ComfyApp.clipspace_return_node) {
-			ComfyApp.pasteFromClipspace(ComfyApp.clipspace_return_node);
+		if(sdcfyApp.clipspace_return_node) {
+			sdcfyApp.pasteFromClipspace(sdcfyApp.clipspace_return_node);
 		}
 	}
 
 	static onClipspaceEditorClosed() {
-		ComfyApp.clipspace_return_node = null;
+		sdcfyApp.clipspace_return_node = null;
 	}
 
 	static copyToClipspace(node) {
@@ -128,7 +128,7 @@ export class ComfyApp {
 			selectedIndex = node.imageIndex;
 		}
 
-		ComfyApp.clipspace = {
+		sdcfyApp.clipspace = {
 			'widgets': widgets,
 			'imgs': imgs,
 			'original_imgs': orig_imgs,
@@ -137,42 +137,42 @@ export class ComfyApp {
 			'img_paste_mode': 'selected' // reset to default im_paste_mode state on copy action
 		};
 
-		ComfyApp.clipspace_return_node = null;
+		sdcfyApp.clipspace_return_node = null;
 
-		if(ComfyApp.clipspace_invalidate_handler) {
-			ComfyApp.clipspace_invalidate_handler();
+		if(sdcfyApp.clipspace_invalidate_handler) {
+			sdcfyApp.clipspace_invalidate_handler();
 		}
 	}
 
 	static pasteFromClipspace(node) {
-		if(ComfyApp.clipspace) {
+		if(sdcfyApp.clipspace) {
 			// image paste
-			if(ComfyApp.clipspace.imgs && node.imgs) {
-				if(node.images && ComfyApp.clipspace.images) {
-					if(ComfyApp.clipspace['img_paste_mode'] == 'selected') {
-						node.images = [ComfyApp.clipspace.images[ComfyApp.clipspace['selectedIndex']]];
+			if(sdcfyApp.clipspace.imgs && node.imgs) {
+				if(node.images && sdcfyApp.clipspace.images) {
+					if(sdcfyApp.clipspace['img_paste_mode'] == 'selected') {
+						node.images = [sdcfyApp.clipspace.images[sdcfyApp.clipspace['selectedIndex']]];
 					}
 					else {
-						node.images = ComfyApp.clipspace.images;
+						node.images = sdcfyApp.clipspace.images;
 					}
 
 					if(app.nodeOutputs[node.id + ""])
 						app.nodeOutputs[node.id + ""].images = node.images;
 				}
 
-				if(ComfyApp.clipspace.imgs) {
+				if(sdcfyApp.clipspace.imgs) {
 					// deep-copy to cut link with clipspace
-					if(ComfyApp.clipspace['img_paste_mode'] == 'selected') {
+					if(sdcfyApp.clipspace['img_paste_mode'] == 'selected') {
 						const img = new Image();
-						img.src = ComfyApp.clipspace.imgs[ComfyApp.clipspace['selectedIndex']].src;
+						img.src = sdcfyApp.clipspace.imgs[sdcfyApp.clipspace['selectedIndex']].src;
 						node.imgs = [img];
 						node.imageIndex = 0;
 					}
 					else {
 						const imgs = [];
-						for(let i=0; i<ComfyApp.clipspace.imgs.length; i++) {
+						for(let i=0; i<sdcfyApp.clipspace.imgs.length; i++) {
 							imgs[i] = new Image();
-							imgs[i].src = ComfyApp.clipspace.imgs[i].src;
+							imgs[i].src = sdcfyApp.clipspace.imgs[i].src;
 							node.imgs = imgs;
 						}
 					}
@@ -180,8 +180,8 @@ export class ComfyApp {
 			}
 
 			if(node.widgets) {
-				if(ComfyApp.clipspace.images) {
-					const clip_image = ComfyApp.clipspace.images[ComfyApp.clipspace['selectedIndex']];
+				if(sdcfyApp.clipspace.images) {
+					const clip_image = sdcfyApp.clipspace.images[sdcfyApp.clipspace['selectedIndex']];
 					const index = node.widgets.findIndex(obj => obj.name === 'image');
 					if(index >= 0) {
 						if(node.widgets[index].type != 'image' && typeof node.widgets[index].value == "string" && clip_image.filename) {
@@ -192,8 +192,8 @@ export class ComfyApp {
 						}
 					}
 				}
-				if(ComfyApp.clipspace.widgets) {
-					ComfyApp.clipspace.widgets.forEach(({ type, name, value }) => {
+				if(sdcfyApp.clipspace.widgets) {
+					sdcfyApp.clipspace.widgets.forEach(({ type, name, value }) => {
 						const prop = Object.values(node.widgets).find(obj => obj.type === type && obj.name === name);
 						if (prop && prop.type != 'button') {
 							if(prop.type != 'image' && typeof prop.value == "string" && value.filename) {
@@ -214,7 +214,7 @@ export class ComfyApp {
 
 	/**
 	 * Invoke an extension callback
-	 * @param {keyof ComfyExtension} method The extension callback to execute
+	 * @param {keyof sdcfyExtension} method The extension callback to execute
 	 * @param  {any[]} args Any arguments to pass to the callback
 	 * @returns
 	 */
@@ -383,30 +383,30 @@ export class ComfyApp {
 			});
 
 			// prevent conflict of clipspace content
-			if (!ComfyApp.clipspace_return_node) {
+			if (!sdcfyApp.clipspace_return_node) {
 				options.push({
 					content: "Copy (Clipspace)",
 					callback: (obj) => {
-						ComfyApp.copyToClipspace(this);
+						sdcfyApp.copyToClipspace(this);
 					},
 				});
 
-				if (ComfyApp.clipspace != null) {
+				if (sdcfyApp.clipspace != null) {
 					options.push({
 						content: "Paste (Clipspace)",
 						callback: () => {
-							ComfyApp.pasteFromClipspace(this);
+							sdcfyApp.pasteFromClipspace(this);
 						},
 					});
 				}
 
-				if (ComfyApp.isImageNode(this)) {
+				if (sdcfyApp.isImageNode(this)) {
 					options.push({
 						content: "Open in MaskEditor",
 						callback: (obj) => {
-							ComfyApp.copyToClipspace(this);
-							ComfyApp.clipspace_return_node = this;
-							ComfyApp.open_maskeditor();
+							sdcfyApp.copyToClipspace(this);
+							sdcfyApp.clipspace_return_node = this;
+							sdcfyApp.open_maskeditor();
 						},
 					});
 				}
@@ -873,7 +873,7 @@ export class ComfyApp {
 					// If an image node is selected, paste into it
 					if (this.canvas.current_node &&
 						this.canvas.current_node.is_selected &&
-						ComfyApp.isImageNode(this.canvas.current_node)) {
+						sdcfyApp.isImageNode(this.canvas.current_node)) {
 						imageNode = this.canvas.current_node;
 					}
 
@@ -1352,7 +1352,7 @@ export class ComfyApp {
 	 */
 	async #loadExtensions() {
 	    const extensions = await api.getExtensions();
-	    this.logging.addEntry("Comfy.App", "debug", { Extensions: extensions });
+	    this.logging.addEntry("sdcfy.App", "debug", { Extensions: extensions });
 	
 	    const extensionPromises = extensions.map(async ext => {
 	        try {
@@ -1369,7 +1369,7 @@ export class ComfyApp {
 		this.isNewUserSession = true;
 		// Store all current settings
 		const settings = Object.keys(this.ui.settings).reduce((p, n) => {
-			const v = localStorage[`Comfy.Settings.${n}`];
+			const v = localStorage[`sdcfy.Settings.${n}`];
 			if (v) {
 				try {
 					p[n] = JSON.parse(v);
@@ -1394,7 +1394,7 @@ export class ComfyApp {
 		}
 
 		this.multiUserServer = true;
-		let user = localStorage["Comfy.userId"];
+		let user = localStorage["sdcfy.userId"];
 		const users = userConfig.users ?? {};
 		if (!user || !users[user]) {
 			// This will rarely be hit so move the loading to on demand
@@ -1405,8 +1405,8 @@ export class ComfyApp {
 			this.ui.menuContainer.style.display = "";
 
 			user = userId;
-			localStorage["Comfy.userName"] = username;
-			localStorage["Comfy.userId"] = user;
+			localStorage["sdcfy.userName"] = username;
+			localStorage["sdcfy.userId"] = user;
 
 			if (created) {
 				api.user = user;
@@ -1417,10 +1417,10 @@ export class ComfyApp {
 		api.user = user;
 
 		this.ui.settings.addSetting({
-			id: "Comfy.SwitchUser",
+			id: "sdcfy.SwitchUser",
 			name: "Switch User",
 			type: (name) => {
-				let currentUser = localStorage["Comfy.userName"];
+				let currentUser = localStorage["sdcfy.userName"];
 				if (currentUser) {
 					currentUser = ` (${currentUser})`;
 				}
@@ -1434,8 +1434,8 @@ export class ComfyApp {
 						$el("button", {
 							textContent: name + (currentUser ?? ""),
 							onclick: () => {
-								delete localStorage["Comfy.userId"];
-								delete localStorage["Comfy.userName"];
+								delete localStorage["sdcfy.userId"];
+								delete localStorage["sdcfy.userName"];
 								window.location.reload();
 							},
 						}),
@@ -1566,7 +1566,7 @@ export class ComfyApp {
 	async registerNodeDef(nodeId, nodeData) {
 		const self = this;
 		const node = Object.assign(
-			function ComfyNode() {
+			function sdcfyNode() {
 				var inputs = nodeData["input"]["required"];
 				if (nodeData["input"]["optional"] != undefined) {
 					inputs = Object.assign({}, nodeData["input"]["required"], nodeData["input"]["optional"]);
@@ -1618,11 +1618,11 @@ export class ComfyApp {
 			},
 			{
 				title: nodeData.display_name || nodeData.name,
-				comfyClass: nodeData.name,
+				sdcfyClass: nodeData.name,
 				nodeData
 			}
 		);
-		node.prototype.comfyClass = nodeData.name;
+		node.prototype.sdcfyClass = nodeData.name;
 
 		this.#addNodeContextMenuHandler(node);
 		this.#addDrawBackgroundHandler(node, app);
@@ -1639,7 +1639,7 @@ export class ComfyApp {
 		// Generate list of known widgets
 		this.widgets = Object.assign(
 			{},
-			ComfyWidgets,
+			sdcfyWidgets,
 			...(await this.#invokeExtensionsAsync("getCustomWidgets")).filter(Boolean)
 		);
 
@@ -1690,7 +1690,7 @@ export class ComfyApp {
 		let seenTypes = new Set();
 
 		this.ui.dialog.show(
-			$el("div.comfy-missing-nodes", [
+			$el("div.sdcfy-missing-nodes", [
 				$el("span", { textContent: "When loading the graph, the following node types were not found: " }),
 				$el(
 					"ul",
@@ -1719,7 +1719,7 @@ export class ComfyApp {
 					: []),
 			])
 		);
-		this.logging.addEntry("Comfy.App", "warn", {
+		this.logging.addEntry("sdcfy.App", "warn", {
 			MissingNodes: missingNodeTypes,
 		});
 	}
@@ -1959,10 +1959,10 @@ export class ComfyApp {
 
 				let node_data = {
 					inputs,
-					class_type: node.comfyClass,
+					class_type: node.sdcfyClass,
 				};
 
-				if (this.ui.settings.getSettingValue("Comfy.DevMode")) {
+				if (this.ui.settings.getSettingValue("sdcfy.DevMode")) {
 					// Ignored by the backend.
 					node_data["_meta"] = {
 						title: node.title,
@@ -2189,8 +2189,8 @@ export class ComfyApp {
 	}
 
 	/**
-	 * Registers a Comfy web extension with the app
-	 * @param {ComfyExtension} extension
+	 * Registers a sdcfy web extension with the app
+	 * @param {sdcfyExtension} extension
 	 */
 	registerExtension(extension) {
 		if (!extension.name) {
@@ -2250,4 +2250,4 @@ export class ComfyApp {
 	}
 }
 
-export const app = new ComfyApp();
+export const app = new sdcfyApp();

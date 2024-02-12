@@ -5,10 +5,10 @@ import math
 
 from einops import rearrange, repeat
 import os
-from comfy.ldm.modules.attention import optimized_attention, _ATTN_PRECISION
-import comfy.samplers
+from sdcfy.ldm.modules.attention import optimized_attention, _ATTN_PRECISION
+import sdcfy.samplers
 
-# from comfy/ldm/modules/attention.py
+# from sdcfy/ldm/modules/attention.py
 # but modified to return attention scores as well as output
 def attention_basic_with_sim(q, k, v, heads, mask=None):
     b, _, dim_head = q.shape
@@ -150,7 +150,7 @@ class SelfAttentionGuidance:
             degraded = create_blur_map(uncond_pred, uncond_attn, sag_sigma, sag_threshold)
             degraded_noised = degraded + x - uncond_pred
             # call into the UNet
-            (sag, _) = comfy.samplers.calc_cond_uncond_batch(model, uncond, None, degraded_noised, sigma, model_options)
+            (sag, _) = sdcfy.samplers.calc_cond_uncond_batch(model, uncond, None, degraded_noised, sigma, model_options)
             return cfg_result + (degraded - sag) * sag_scale
 
         m.set_model_sampler_post_cfg_function(post_cfg_function, disable_cfg1_optimization=True)

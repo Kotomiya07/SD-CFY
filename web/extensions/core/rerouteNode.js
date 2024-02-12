@@ -4,7 +4,7 @@ import { mergeIfValid, getWidgetConfig, setWidgetConfig } from "./widgetInputs.j
 // Node that allows you to redirect connections for cleaner graphs
 
 app.registerExtension({
-	name: "Comfy.RerouteNode",
+	name: "sdcfy.RerouteNode",
 	registerCustomNodes(app) {
 		class RerouteNode {
 			constructor() {
@@ -250,15 +250,15 @@ app.registerExtension({
 			static setDefaultTextVisibility(visible) {
 				RerouteNode.defaultVisibility = visible;
 				if (visible) {
-					localStorage["Comfy.RerouteNode.DefaultVisibility"] = "true";
+					localStorage["sdcfy.RerouteNode.DefaultVisibility"] = "true";
 				} else {
-					delete localStorage["Comfy.RerouteNode.DefaultVisibility"];
+					delete localStorage["sdcfy.RerouteNode.DefaultVisibility"];
 				}
 			}
 		}
 
 		// Load default visibility
-		RerouteNode.setDefaultTextVisibility(!!localStorage["Comfy.RerouteNode.DefaultVisibility"]);
+		RerouteNode.setDefaultTextVisibility(!!localStorage["sdcfy.RerouteNode.DefaultVisibility"]);
 
 		LiteGraph.registerNodeType(
 			"Reroute",

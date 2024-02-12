@@ -2,7 +2,7 @@ from .k_diffusion import sampling as k_diffusion_sampling
 from .extra_samplers import uni_pc
 import torch
 import collections
-from comfy import model_management
+from sdcfy import model_management
 import math
 
 def get_area_and_mult(conds, x_in, timestep_in):

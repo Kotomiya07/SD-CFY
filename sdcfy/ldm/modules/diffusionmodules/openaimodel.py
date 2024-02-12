@@ -13,9 +13,9 @@ from .util import (
     AlphaBlender,
 )
 from ..attention import SpatialTransformer, SpatialVideoTransformer, default
-from comfy.ldm.util import exists
-import comfy.ops
-ops = comfy.ops.disable_weight_init
+from sdcfy.ldm.util import exists
+import sdcfy.ops
+ops = sdcfy.ops.disable_weight_init
 
 class TimestepBlock(nn.Module):
     """

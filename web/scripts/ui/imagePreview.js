@@ -34,7 +34,7 @@ export function calculateImageGrid(imgs, dw, dh) {
 }
 
 export function createImageHost(node) {
-	const el = $el("div.comfy-img-preview");
+	const el = $el("div.sdcfy-img-preview");
 	let currentImgs;
 	let first = true;
 
@@ -50,9 +50,9 @@ export function createImageHost(node) {
 				if (elH < 190) {
 					elH = 190;
 				}
-				el.style.setProperty("--comfy-widget-min-height", elH);
+				el.style.setProperty("--sdcfy-widget-min-height", elH);
 			} else {
-				el.style.setProperty("--comfy-widget-min-height", null);
+				el.style.setProperty("--sdcfy-widget-min-height", null);
 			}
 
 			const nw = node.size[0];
@@ -60,8 +60,8 @@ export function createImageHost(node) {
 			w += "px";
 			h += "px";
 
-			el.style.setProperty("--comfy-img-preview-width", w);
-			el.style.setProperty("--comfy-img-preview-height", h);
+			el.style.setProperty("--sdcfy-img-preview-width", w);
+			el.style.setProperty("--sdcfy-img-preview-height", h);
 		}
 	}
 	return {
