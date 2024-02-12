@@ -1,5 +1,5 @@
-import sdcfy.options
-sdcfy.options.enable_args_parsing()
+import comfy.options
+comfy.options.enable_args_parsing()
 
 import os
 import importlib.util
@@ -53,7 +53,7 @@ import shutil
 import threading
 import gc
 
-from sdcfy.cli_args import args
+from comfy.cli_args import args
 
 if os.name == "nt":
     import logging
@@ -64,85 +64,42 @@ if __name__ == "__main__":
         os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda_device)
         print("Set cuda device to:", args.cuda_device)
 
-    if args.deterministic:
-        if 'CUBLAS_WORKSPACE_CONFIG' not in os.environ:
-            os.environ['CUBLAS_WORKSPACE_CONFIG'] = ":4096:8"
-
     import cuda_malloc
 
-import sdcfy.utils
+import comfy.utils
 import yaml
 
 import execution
 import server
 from server import BinaryEventTypes
 from nodes import init_custom_nodes
-import sdcfy.model_management
+import comfy.model_management
 
 def cuda_malloc_warning():
-    device = sdcfy.model_management.get_torch_device()
-    device_name = sdcfy.model_management.get_torch_device_name(device)
+    device = comfy.model_management.get_torch_device()
+    device_name = comfy.model_management.get_torch_device_name(device)
     cuda_malloc_warning = False
     if "cudaMallocAsync" in device_name:
         for b in cuda_malloc.blacklist:
             if b in device_name:
                 cuda_malloc_warning = True
         if cuda_malloc_warning:
-            print("\nWARNING: this card most likely does not support cuda-malloc, if you get \"CUDA error\" please run SD-CFY with: --disable-cuda-malloc\n")
+            print("\nWARNING: this card most likely does not support cuda-malloc, if you get \"CUDA error\" please run ComfyUI with: --disable-cuda-malloc\n")
 
 def prompt_worker(q, server):
     e = execution.PromptExecutor(server)
-    last_gc_collect = 0
-    need_gc = False
-    gc_collect_interval = 10.0
-
     while True:
-        timeout = 1000.0
-        if need_gc:
-            timeout = max(gc_collect_interval - (current_time - last_gc_collect), 0.0)
+        item, item_id = q.get()
+        execution_start_time = time.perf_counter()
+        prompt_id = item[1]
+        e.execute(item[2], prompt_id, item[3], item[4])
+        q.task_done(item_id, e.outputs_ui)
+        if server.client_id is not None:
+            server.send_sync("executing", { "node": None, "prompt_id": prompt_id }, server.client_id)
 
-        queue_item = q.get(timeout=timeout)
-        if queue_item is not None:
-            item, item_id = queue_item
-            execution_start_time = time.perf_counter()
-            prompt_id = item[1]
-            server.last_prompt_id = prompt_id
-
-            e.execute(item[2], prompt_id, item[3], item[4])
-            need_gc = True
-            q.task_done(item_id,
-                        e.outputs_ui,
-                        status=execution.PromptQueue.ExecutionStatus(
-                            status_str='success' if e.success else 'error',
-                            completed=e.success,
-                            messages=e.status_messages))
-            if server.client_id is not None:
-                server.send_sync("executing", { "node": None, "prompt_id": prompt_id }, server.client_id)
-
-            current_time = time.perf_counter()
-            execution_time = current_time - execution_start_time
-            print("Prompt executed in {:.2f} seconds".format(execution_time))
-
-        flags = q.get_flags()
-        free_memory = flags.get("free_memory", False)
-
-        if flags.get("unload_models", free_memory):
-            sdcfy.model_management.unload_all_models()
-            need_gc = True
-            last_gc_collect = 0
-
-        if free_memory:
-            e.reset()
-            need_gc = True
-            last_gc_collect = 0
-
-        if need_gc:
-            current_time = time.perf_counter()
-            if (current_time - last_gc_collect) > gc_collect_interval:
-                gc.collect()
-                sdcfy.model_management.soft_empty_cache()
-                last_gc_collect = current_time
-                need_gc = False
+        print("Prompt executed in {:.2f} seconds".format(time.perf_counter() - execution_start_time))
+        gc.collect()
+        comfy.model_management.soft_empty_cache()
 
 async def run(server, address='', port=8188, verbose=True, call_on_start=None):
     await asyncio.gather(server.start(address, port, verbose, call_on_start), server.publish_loop())
@@ -150,13 +107,11 @@ async def run(server, address='', port=8188, verbose=True, call_on_start=None):
 
 def hijack_progress(server):
     def hook(value, total, preview_image):
-        sdcfy.model_management.throw_exception_if_processing_interrupted()
-        progress = {"value": value, "max": total, "prompt_id": server.last_prompt_id, "node": server.last_node_id}
-
-        server.send_sync("progress", progress, server.client_id)
+        comfy.model_management.throw_exception_if_processing_interrupted()
+        server.send_sync("progress", {"value": value, "max": total}, server.client_id)
         if preview_image is not None:
             server.send_sync(BinaryEventTypes.UNENCODED_PREVIEW_IMAGE, preview_image, server.client_id)
-    sdcfy.utils.set_progress_bar_global_hook(hook)
+    comfy.utils.set_progress_bar_global_hook(hook)
 
 
 def cleanup_temp():

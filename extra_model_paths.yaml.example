@@ -1,13 +1,13 @@
-#Rename this to extra_model_paths.yaml and SD-CFY will load it
+#Rename this to extra_model_paths.yaml and ComfyUI will load it
 
 
 #config for a1111 ui
 #all you have to do is change the base_path to where yours is installed
 a111:
-    base_path: path/to/SD-UI/
+    base_path: path/to/stable-diffusion-webui/
 
-    checkpoints: models/SD
-    configs: models/SD
+    checkpoints: models/Stable-diffusion
+    configs: models/Stable-diffusion
     vae: models/VAE
     loras: |
          models/Lora
@@ -20,11 +20,11 @@ a111:
     hypernetworks: models/hypernetworks
     controlnet: models/ControlNet
 
-#config for sdcfy
-#your base path should be either an existing sdcfy install or a central folder where you store all of your models, loras, etc.
+#config for comfyui
+#your base path should be either an existing comfy install or a central folder where you store all of your models, loras, etc.
 
-#sdcfy:
-#     base_path: path/to/sdcfy/
+#comfyui:
+#     base_path: path/to/comfyui/
 #     checkpoints: models/checkpoints/
 #     clip: models/clip/
 #     clip_vision: models/clip_vision/

@@ -2,10 +2,10 @@ import torch
 from PIL import Image
 import struct
 import numpy as np
-from sdcfy.cli_args import args, LatentPreviewMethod
-from sdcfy.taesd.taesd import TAESD
+from comfy.cli_args import args, LatentPreviewMethod
+from comfy.taesd.taesd import TAESD
 import folder_paths
-import sdcfy.utils
+import comfy.utils
 
 MAX_PREVIEW_RESOLUTION = 512
 
@@ -22,7 +22,10 @@ class TAESDPreviewerImpl(LatentPreviewer):
         self.taesd = taesd
 
     def decode_latent_to_preview(self, x0):
-        x_sample = self.taesd.decode(x0[:1])[0].detach()
+        x_sample = self.taesd.decoder(x0[:1])[0].detach()
+        # x_sample = self.taesd.unscale_latents(x_sample).div(4).add(0.5)  # returns value in [-2, 2]
+        x_sample = x_sample.sub(0.5).mul(2)
+
         x_sample = torch.clamp((x_sample + 1.0) / 2.0, min=0.0, max=1.0)
         x_sample = 255. * np.moveaxis(x_sample.cpu().numpy(), 0, 2)
         x_sample = x_sample.astype(np.uint8)
@@ -84,7 +87,7 @@ def prepare_callback(model, steps, x0_output_dict=None):
 
     previewer = get_previewer(model.load_device, model.model.latent_format)
 
-    pbar = sdcfy.utils.ProgressBar(steps)
+    pbar = comfy.utils.ProgressBar(steps)
     def callback(step, x0, x, total_steps):
         if x0_output_dict is not None:
             x0_output_dict["x0"] = x0

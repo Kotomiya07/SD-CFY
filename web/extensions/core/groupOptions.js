@@ -61,7 +61,7 @@ function addNodesToGroup(group, nodes=[]) {
 }
 
 app.registerExtension({
-    name: "sdcfy.GroupOptions",
+    name: "Comfy.GroupOptions",
     setup() {
         const orig = LGraphCanvas.prototype.getCanvasMenuOptions;
         // graph_mouse

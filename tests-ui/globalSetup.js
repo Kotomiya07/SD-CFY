@@ -10,5 +10,5 @@ module.exports = async function () {
 
 	HTMLCanvasElement.prototype.getContext = nop;
 
-	localStorage["sdcfy.Settings.sdcfy.Logging.Enabled"] = "false";
+	localStorage["Comfy.Settings.Comfy.Logging.Enabled"] = "false";
 };

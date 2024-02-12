@@ -17,13 +17,13 @@ import urllib.request
 import urllib.parse
 
 
-from sdcfy.samplers import KSampler
+from comfy.samplers import KSampler
 
 """
 These tests generate and save images through a range of parameters
 """
 
-class sdcfyGraph:
+class ComfyGraph:
     def __init__(self, 
                  graph: dict,
                  sampler_nodes: list[str],
@@ -57,7 +57,7 @@ class sdcfyGraph:
                 self.graph[node]['inputs']['filename_prefix'] = prefix
 
 
-class sdcfyClient:
+class ComfyClient:
     # From examples/websockets_api_example.py
 
     def connect(self, 
@@ -127,14 +127,14 @@ class sdcfyClient:
 default_graph_file = 'tests/inference/graphs/default_graph_sdxl1_0.json'
 with open(default_graph_file, 'r') as file:
     default_graph = json.loads(file.read())
-DEFAULT_sdcfy_GRAPH = sdcfyGraph(graph=default_graph, sampler_nodes=['10','14'])
-DEFAULT_sdcfy_GRAPH_ID = os.path.splitext(os.path.basename(default_graph_file))[0]
+DEFAULT_COMFY_GRAPH = ComfyGraph(graph=default_graph, sampler_nodes=['10','14'])
+DEFAULT_COMFY_GRAPH_ID = os.path.splitext(os.path.basename(default_graph_file))[0]
 
 #
 # Loop through these variables
 #
-sdcfy_graph_list = [DEFAULT_sdcfy_GRAPH]
-sdcfy_graph_ids = [DEFAULT_sdcfy_GRAPH_ID]
+comfy_graph_list = [DEFAULT_COMFY_GRAPH]
+comfy_graph_ids = [DEFAULT_COMFY_GRAPH_ID]
 prompt_list = [
     'a painting of a cat',
 ]
@@ -165,38 +165,38 @@ class TestInference:
 
     def start_client(self, listen:str, port:int):
         # Start client
-        sdcfy_client = sdcfyClient()
+        comfy_client = ComfyClient()
         # Connect to server (with retries)
         n_tries = 5
         for i in range(n_tries):
             time.sleep(4)
             try:
-                sdcfy_client.connect(listen=listen, port=port)
+                comfy_client.connect(listen=listen, port=port)
             except ConnectionRefusedError as e:
                 print(e)
                 print(f"({i+1}/{n_tries}) Retrying...")
             else:
                 break
-        return sdcfy_client
+        return comfy_client
 
     #
     # Client and graph fixtures with server warmup
     #
     # Returns a "_client_graph", which is client-graph pair corresponding to an initialized server
     # The "graph" is the default graph
-    @fixture(scope="class", params=sdcfy_graph_list, ids=sdcfy_graph_ids, autouse=True)
-    def _client_graph(self, request, args_pytest, _server) -> (sdcfyClient, sdcfyGraph):
-        sdcfy_graph = request.param
+    @fixture(scope="class", params=comfy_graph_list, ids=comfy_graph_ids, autouse=True)
+    def _client_graph(self, request, args_pytest, _server) -> (ComfyClient, ComfyGraph):
+        comfy_graph = request.param
         
         # Start client
-        sdcfy_client = self.start_client(args_pytest["listen"], args_pytest["port"])
+        comfy_client = self.start_client(args_pytest["listen"], args_pytest["port"])
 
         # Warm up pipeline
-        sdcfy_client.get_images(graph=sdcfy_graph.graph, save=False)
+        comfy_client.get_images(graph=comfy_graph.graph, save=False)
 
-        yield sdcfy_client, sdcfy_graph
-        del sdcfy_client
-        del sdcfy_graph
+        yield comfy_client, comfy_graph
+        del comfy_client
+        del comfy_graph
         torch.cuda.empty_cache()
 
     @fixture
@@ -205,29 +205,29 @@ class TestInference:
         yield client
     
     @fixture
-    def sdcfy_graph(self, _client_graph):
+    def comfy_graph(self, _client_graph):
         # avoid mutating the graph
         graph = deepcopy(_client_graph[1])
         yield graph
 
-    def test_sdcfy(
+    def test_comfy(
         self,
         client,
-        sdcfy_graph,
+        comfy_graph,
         sampler,
         scheduler,
         prompt,
         request
     ):
         test_info = request.node.name
-        sdcfy_graph.set_filename_prefix(test_info)
-        # Settings for sdcfy graph
-        sdcfy_graph.set_sampler_name(sampler)
-        sdcfy_graph.set_scheduler(scheduler)
-        sdcfy_graph.set_prompt(prompt)
+        comfy_graph.set_filename_prefix(test_info)
+        # Settings for comfy graph
+        comfy_graph.set_sampler_name(sampler)
+        comfy_graph.set_scheduler(scheduler)
+        comfy_graph.set_prompt(prompt)
 
         # Generate
-        images = client.get_images(sdcfy_graph.graph)
+        images = client.get_images(comfy_graph.graph)
 
         assert len(images) != 0, "No images generated"
         # assert all images are not blank

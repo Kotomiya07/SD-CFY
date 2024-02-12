@@ -3,11 +3,11 @@ import { app } from "../../scripts/app.js";
 // Shift + drag/resize to snap to grid
 
 app.registerExtension({
-	name: "sdcfy.SnapToGrid",
+	name: "Comfy.SnapToGrid",
 	init() {
 		// Add setting to control grid size
 		app.ui.settings.addSetting({
-			id: "sdcfy.SnapToGrid.GridSize",
+			id: "Comfy.SnapToGrid.GridSize",
 			name: "Grid Size",
 			type: "slider",
 			attrs: {

@@ -2,7 +2,7 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8">
-		<title>SD-CFY</title>
+		<title>ComfyUI</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 		<link rel="stylesheet" type="text/css" href="./lib/litegraph.css" />
 		<link rel="stylesheet" type="text/css" href="./style.css" />
@@ -16,33 +16,5 @@
 			window.graph = app.graph;
 		</script>
 	</head>
-	<body class="litegraph">
-		<div id="sdcfy-user-selection" class="sdcfy-user-selection" style="display: none;">
-			<main class="sdcfy-user-selection-inner">
-				<h1>SD-CFY</h1>
-				<form>
-					<section>
-						<label>New user:
-							<input placeholder="Enter a username" />
-						</label>
-					</section>
-					<div class="sdcfy-user-existing">
-						<span class="or-separator">OR</span>
-						<section>
-							<label>
-								Existing user:
-								<select>
-									<option hidden disabled selected value> Select a user </option>
-								</select>
-							</label>
-						</section>
-					</div>
-					<footer>
-						<span class="sdcfy-user-error">&nbsp;</span>
-						<button class="sdcfy-btn sdcfy-user-button-next">Next</button>
-					</footer>
-				</form>
-			</main>
-		</div>
-	</body>
+	<body class="litegraph"></body>
 </html>

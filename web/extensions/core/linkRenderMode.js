@@ -1,6 +1,6 @@
 import { app } from "../../scripts/app.js";
 
-const id = "sdcfy.LinkRenderMode";
+const id = "Comfy.LinkRenderMode";
 const ext = {
 	name: id,
 	async setup(app) {

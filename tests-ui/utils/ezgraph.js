@@ -78,14 +78,6 @@ export class EzInput extends EzSlot {
 		this.input = input;
 	}
 
-	get connection() {
-		const link = this.node.node.inputs?.[this.index]?.link;
-		if (link == null) {
-			return null;
-		}
-		return new EzConnection(this.node.app, this.node.app.graph.links[link]);
-	}
-
 	disconnect() {
 		this.node.node.disconnectInput(this.index);
 	}
@@ -125,7 +117,7 @@ export class EzOutput extends EzSlot {
 			const inp = input.input;
 			const inName = inp.name || inp.label || inp.type;
 			throw new Error(
-				`Connecting from ${input.node.node.type}#${input.node.id}[${inName}#${input.index}] -> ${this.node.node.type}#${this.node.id}[${
+				`Connecting from ${input.node.node.type}[${inName}#${input.index}] -> ${this.node.node.type}[${
 					this.output.name ?? this.output.type
 				}#${this.index}] failed.`
 			);
@@ -158,7 +150,7 @@ export class EzNodeMenuItem {
 		if (selectNode) {
 			this.node.select();
 		}
-		return this.item.callback.call(this.node.node, undefined, undefined, undefined, undefined, this.node.node);
+		this.item.callback.call(this.node.node, undefined, undefined, undefined, undefined, this.node.node);
 	}
 }
 
@@ -187,7 +179,6 @@ export class EzWidget {
 
 	set value(v) {
 		this.widget.value = v;
-		this.widget.callback?.call?.(this.widget, v)
 	}
 
 	get isConvertedToInput() {
@@ -249,12 +240,8 @@ export class EzNode {
 		return this.#makeLookupArray(() => this.app.canvas.getNodeMenuOptions(this.node), "content", EzNodeMenuItem);
 	}
 
-	get isRemoved() {
-		return !this.app.graph.getNodeById(this.id);
-	}
-
-	select(addToSelection = false) {
-		this.app.canvas.selectNode(this.node, addToSelection);
+	select() {
+		this.app.canvas.selectNode(this.node);
 	}
 
 	// /**
@@ -288,17 +275,12 @@ export class EzNode {
 			if (!s) return p;
 
 			const name = s[nameProperty];
-			const item = new ctor(this, i, s);
 			// @ts-ignore
-			p.push(item);
-			if (name) {
-				// @ts-ignore
-				if (name in p) {
-					throw new Error(`Unable to store ${nodeProperty} ${name} on array as name conflicts.`);
-				}
+			if (!name || name in p) {
+				throw new Error(`Unable to store ${nodeProperty} ${name} on array as name conflicts.`);
 			}
 			// @ts-ignore
-			p[name] = item;
+			p.push((p[name] = new ctor(this, i, s)));
 			return p;
 		}, Object.assign([], { $: this }));
 	}
@@ -328,7 +310,7 @@ export class EzGraph {
 	}
 
 	stringify() {
-		return JSON.stringify(this.app.graph.serialize(), undefined);
+		return JSON.stringify(this.app.graph.serialize(), undefined, "\t");
 	}
 
 	/**
@@ -366,33 +348,20 @@ export class EzGraph {
 			}, 10);
 		});
 	}
-
-	/**
-	 * @returns { Promise<{
-	 * 	workflow: {},
-	 * 	output: Record<string, {
-	 * 		class_name: string,
-	 * 		inputs: Record<string, [string, number] | unknown>
-	 * }>}> }
-	 */
-	toPrompt() {
-		// @ts-ignore
-		return this.app.graphToPrompt();
-	}
 }
 
 export const Ez = {
 	/**
-	 * Quickly build and interact with a SD-CFY graph
+	 * Quickly build and interact with a ComfyUI graph
 	 * @example
 	 * const { ez, graph } = Ez.graph(app);
 	 * graph.clear();
-	 * const [model, clip, vae] = ez.CheckpointLoaderSimple().outputs;
-	 * const [pos] = ez.CLIPTextEncode(clip, { text: "positive" }).outputs;
-	 * const [neg] = ez.CLIPTextEncode(clip, { text: "negative" }).outputs;
-	 * const [latent] = ez.KSampler(model, pos, neg, ...ez.EmptyLatentImage().outputs).outputs;
-	 * const [image] = ez.VAEDecode(latent, vae).outputs;
-	 * const saveNode = ez.SaveImage(image);
+	 * const [model, clip, vae] = ez.CheckpointLoaderSimple();
+	 * const [pos] = ez.CLIPTextEncode(clip, { text: "positive" });
+	 * const [neg] = ez.CLIPTextEncode(clip, { text: "negative" });
+	 * const [latent] = ez.KSampler(model, pos, neg, ...ez.EmptyLatentImage());
+	 * const [image] = ez.VAEDecode(latent, vae);
+	 * const saveNode = ez.SaveImage(image).node;
 	 * console.log(saveNode);
 	 * graph.arrange();
 	 * @param { app } app

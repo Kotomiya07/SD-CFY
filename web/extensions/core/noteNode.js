@@ -1,9 +1,9 @@
 import {app} from "../../scripts/app.js";
-import {sdcfyWidgets} from "../../scripts/widgets.js";
+import {ComfyWidgets} from "../../scripts/widgets.js";
 // Node that add notes to your project
 
 app.registerExtension({
-    name: "sdcfy.NoteNode",
+    name: "Comfy.NoteNode",
     registerCustomNodes() {
         class NoteNode {
             color=LGraphCanvas.node_colors.yellow.color;
@@ -15,7 +15,7 @@ app.registerExtension({
                     this.properties.text="";
                 }
 
-                sdcfyWidgets.STRING(this, "", ["", {default:this.properties.text, multiline: true}], app)
+                ComfyWidgets.STRING(this, "", ["", {default:this.properties.text, multiline: true}], app)
 
                 this.serialize_widgets = true;
                 this.isVirtualNode = true;

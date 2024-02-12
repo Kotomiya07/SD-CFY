@@ -1,23 +1,23 @@
-import { $el, sdcfyDialog } from "./ui.js";
+import { $el, ComfyDialog } from "./ui.js";
 import { api } from "./api.js";
 
 $el("style", {
 	textContent: `
-        .sdcfy-logging-logs {
+        .comfy-logging-logs {
             display: grid;
             color: var(--fg-color);
             white-space: pre-wrap;
         }
-        .sdcfy-logging-log {
+        .comfy-logging-log {
             display: contents;
         }
-        .sdcfy-logging-title {
+        .comfy-logging-title {
             background: var(--tr-even-bg-color);
             font-weight: bold;
             margin-bottom: 5px;
             text-align: center;
         }
-        .sdcfy-logging-log div {
+        .comfy-logging-log div {
             background: var(--row-bg);
             padding: 5px;
         }
@@ -82,7 +82,7 @@ const fileInput = $el("input", {
 	parent: document.body,
 });
 
-class sdcfyLoggingDialog extends sdcfyDialog {
+class ComfyLoggingDialog extends ComfyDialog {
 	constructor(logging) {
 		super();
 		this.logging = logging;
@@ -100,7 +100,7 @@ class sdcfyLoggingDialog extends sdcfyDialog {
 		const url = URL.createObjectURL(blob);
 		const a = $el("a", {
 			href: url,
-			download: `sdcfy-logs-${Date.now()}.json`,
+			download: `comfyui-logs-${Date.now()}.json`,
 			style: { display: "none" },
 			parent: document.body,
 		});
@@ -175,13 +175,13 @@ class sdcfyLoggingDialog extends sdcfyDialog {
 		};
 		const keys = Object.keys(cols);
 		const headers = Object.values(cols).map((title) =>
-			$el("div.sdcfy-logging-title", {
+			$el("div.comfy-logging-title", {
 				textContent: title,
 			})
 		);
 		const rows = entries.map((entry, i) => {
 			return $el(
-				"div.sdcfy-logging-log",
+				"div.comfy-logging-log",
 				{
 					$: (el) => el.style.setProperty("--row-bg", `var(--tr-${i % 2 ? "even" : "odd"}-bg-color)`),
 				},
@@ -209,7 +209,7 @@ class sdcfyLoggingDialog extends sdcfyDialog {
 		});
 
 		const grid = $el(
-			"div.sdcfy-logging-logs",
+			"div.comfy-logging-logs",
 			{
 				style: {
 					gridTemplateColumns: `repeat(${headers.length}, 1fr)`,
@@ -230,7 +230,7 @@ class sdcfyLoggingDialog extends sdcfyDialog {
 	}
 }
 
-export class sdcfyLogging {
+export class ComfyLogging {
 	/**
 	 * @type Array<{ source: string, type: string, timestamp: Date, message: any }>
 	 */
@@ -256,22 +256,19 @@ export class sdcfyLogging {
 	constructor(app) {
 		this.app = app;
 
-		this.dialog = new sdcfyLoggingDialog(this);
+		this.dialog = new ComfyLoggingDialog(this);
 		this.addSetting();
 		this.catchUnhandled();
 		this.addInitData();
 	}
 
 	addSetting() {
-		const settingId = "sdcfy.Logging.Enabled";
+		const settingId = "Comfy.Logging.Enabled";
 		const htmlSettingId = settingId.replaceAll(".", "-");
 		const setting = this.app.ui.settings.addSetting({
 			id: settingId,
 			name: settingId,
 			defaultValue: true,
-			onChange: (value) => {
-				this.enabled = value;
-			},
 			type: (name, setter, value) => {
 				return $el("tr", [
 					$el("td", [
@@ -286,7 +283,7 @@ export class sdcfyLogging {
 							type: "checkbox",
 							checked: value,
 							onchange: (event) => {
-								setter(event.target.checked);
+								setter((this.enabled = event.target.checked));
 							},
 						}),
 						$el("button", {
@@ -362,7 +359,7 @@ export class sdcfyLogging {
 
 	async addInitData() {
 		if (!this.enabled) return;
-		const source = "SD-CFY.Logging";
+		const source = "ComfyUI.Logging";
 		this.addEntry(source, "debug", { UserAgent: navigator.userAgent });
 		const systemStats = await api.getSystemStats();
 		this.addEntry(source, "debug", systemStats);

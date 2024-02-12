@@ -1,34 +1,15 @@
-import { sdcfyLogging } from "./logging.js";
-import { sdcfyWidgets, initWidgets } from "./widgets.js";
-import { SD-CFY, $el } from "./ui.js";
+import { ComfyLogging } from "./logging.js";
+import { ComfyWidgets } from "./widgets.js";
+import { ComfyUI, $el } from "./ui.js";
 import { api } from "./api.js";
 import { defaultGraph } from "./defaultGraph.js";
 import { getPngMetadata, getWebpMetadata, importA1111, getLatentMetadata } from "./pnginfo.js";
-import { addDomClippingSetting } from "./domWidget.js";
-import { createImageHost, calculateImageGrid } from "./ui/imagePreview.js"
-
-export const ANIM_PREVIEW_WIDGET = "$$sdcfy_animation_preview"
-
-function sanitizeNodeName(string) {
-	let entityMap = {
-	'&': '',
-	'<': '',
-	'>': '',
-	'"': '',
-	"'": '',
-	'`': '',
-	'=': ''
-	};
-	return String(string).replace(/[&<>"'`=]/g, function fromEntityMap (s) {
-		return entityMap[s];
-	});
-}
 
 /**
- * @typedef {import("types/sdcfy").sdcfyExtension} sdcfyExtension
+ * @typedef {import("types/comfy").ComfyExtension} ComfyExtension
  */
 
-export class sdcfyApp {
+export class ComfyApp {
 	/**
 	 * List of entries to queue
 	 * @type {{number: number, batchCount: number}[]}
@@ -50,12 +31,12 @@ export class sdcfyApp {
 	static clipspace_return_node = null;
 
 	constructor() {
-		this.ui = new SD-CFY(this);
-		this.logging = new sdcfyLogging(this);
+		this.ui = new ComfyUI(this);
+		this.logging = new ComfyLogging(this);
 
 		/**
 		 * List of extensions that are registered with the app
-		 * @type {sdcfyExtension[]}
+		 * @type {ComfyExtension[]}
 		 */
 		this.extensions = [];
 
@@ -79,15 +60,11 @@ export class sdcfyApp {
 	}
 
 	getPreviewFormatParam() {
-		let preview_format = this.ui.settings.getSettingValue("sdcfy.PreviewFormat");
+		let preview_format = this.ui.settings.getSettingValue("Comfy.PreviewFormat");
 		if(preview_format)
 			return `&preview=${preview_format}`;
 		else
 			return "";
-	}
-
-	getRandParam() {
-		return "&rand=" + Math.random();
 	}
 
 	static isImageNode(node) {
@@ -95,13 +72,13 @@ export class sdcfyApp {
 	}
 
 	static onClipspaceEditorSave() {
-		if(sdcfyApp.clipspace_return_node) {
-			sdcfyApp.pasteFromClipspace(sdcfyApp.clipspace_return_node);
+		if(ComfyApp.clipspace_return_node) {
+			ComfyApp.pasteFromClipspace(ComfyApp.clipspace_return_node);
 		}
 	}
 
 	static onClipspaceEditorClosed() {
-		sdcfyApp.clipspace_return_node = null;
+		ComfyApp.clipspace_return_node = null;
 	}
 
 	static copyToClipspace(node) {
@@ -128,7 +105,7 @@ export class sdcfyApp {
 			selectedIndex = node.imageIndex;
 		}
 
-		sdcfyApp.clipspace = {
+		ComfyApp.clipspace = {
 			'widgets': widgets,
 			'imgs': imgs,
 			'original_imgs': orig_imgs,
@@ -137,42 +114,42 @@ export class sdcfyApp {
 			'img_paste_mode': 'selected' // reset to default im_paste_mode state on copy action
 		};
 
-		sdcfyApp.clipspace_return_node = null;
+		ComfyApp.clipspace_return_node = null;
 
-		if(sdcfyApp.clipspace_invalidate_handler) {
-			sdcfyApp.clipspace_invalidate_handler();
+		if(ComfyApp.clipspace_invalidate_handler) {
+			ComfyApp.clipspace_invalidate_handler();
 		}
 	}
 
 	static pasteFromClipspace(node) {
-		if(sdcfyApp.clipspace) {
+		if(ComfyApp.clipspace) {
 			// image paste
-			if(sdcfyApp.clipspace.imgs && node.imgs) {
-				if(node.images && sdcfyApp.clipspace.images) {
-					if(sdcfyApp.clipspace['img_paste_mode'] == 'selected') {
-						node.images = [sdcfyApp.clipspace.images[sdcfyApp.clipspace['selectedIndex']]];
+			if(ComfyApp.clipspace.imgs && node.imgs) {
+				if(node.images && ComfyApp.clipspace.images) {
+					if(ComfyApp.clipspace['img_paste_mode'] == 'selected') {
+						node.images = [ComfyApp.clipspace.images[ComfyApp.clipspace['selectedIndex']]];
 					}
 					else {
-						node.images = sdcfyApp.clipspace.images;
+						node.images = ComfyApp.clipspace.images;
 					}
 
 					if(app.nodeOutputs[node.id + ""])
 						app.nodeOutputs[node.id + ""].images = node.images;
 				}
 
-				if(sdcfyApp.clipspace.imgs) {
+				if(ComfyApp.clipspace.imgs) {
 					// deep-copy to cut link with clipspace
-					if(sdcfyApp.clipspace['img_paste_mode'] == 'selected') {
+					if(ComfyApp.clipspace['img_paste_mode'] == 'selected') {
 						const img = new Image();
-						img.src = sdcfyApp.clipspace.imgs[sdcfyApp.clipspace['selectedIndex']].src;
+						img.src = ComfyApp.clipspace.imgs[ComfyApp.clipspace['selectedIndex']].src;
 						node.imgs = [img];
 						node.imageIndex = 0;
 					}
 					else {
 						const imgs = [];
-						for(let i=0; i<sdcfyApp.clipspace.imgs.length; i++) {
+						for(let i=0; i<ComfyApp.clipspace.imgs.length; i++) {
 							imgs[i] = new Image();
-							imgs[i].src = sdcfyApp.clipspace.imgs[i].src;
+							imgs[i].src = ComfyApp.clipspace.imgs[i].src;
 							node.imgs = imgs;
 						}
 					}
@@ -180,8 +157,8 @@ export class sdcfyApp {
 			}
 
 			if(node.widgets) {
-				if(sdcfyApp.clipspace.images) {
-					const clip_image = sdcfyApp.clipspace.images[sdcfyApp.clipspace['selectedIndex']];
+				if(ComfyApp.clipspace.images) {
+					const clip_image = ComfyApp.clipspace.images[ComfyApp.clipspace['selectedIndex']];
 					const index = node.widgets.findIndex(obj => obj.name === 'image');
 					if(index >= 0) {
 						if(node.widgets[index].type != 'image' && typeof node.widgets[index].value == "string" && clip_image.filename) {
@@ -192,8 +169,8 @@ export class sdcfyApp {
 						}
 					}
 				}
-				if(sdcfyApp.clipspace.widgets) {
-					sdcfyApp.clipspace.widgets.forEach(({ type, name, value }) => {
+				if(ComfyApp.clipspace.widgets) {
+					ComfyApp.clipspace.widgets.forEach(({ type, name, value }) => {
 						const prop = Object.values(node.widgets).find(obj => obj.type === type && obj.name === name);
 						if (prop && prop.type != 'button') {
 							if(prop.type != 'image' && typeof prop.value == "string" && value.filename) {
@@ -214,7 +191,7 @@ export class sdcfyApp {
 
 	/**
 	 * Invoke an extension callback
-	 * @param {keyof sdcfyExtension} method The extension callback to execute
+	 * @param {keyof ComfyExtension} method The extension callback to execute
 	 * @param  {any[]} args Any arguments to pass to the callback
 	 * @returns
 	 */
@@ -269,71 +246,6 @@ export class sdcfyApp {
 	 * @param {*} node The node to add the menu handler
 	 */
 	#addNodeContextMenuHandler(node) {
-		function getCopyImageOption(img) {
-			if (typeof window.ClipboardItem === "undefined") return [];
-			return [
-				{
-					content: "Copy Image",
-					callback: async () => {
-						const url = new URL(img.src);
-						url.searchParams.delete("preview");
-
-						const writeImage = async (blob) => {
-							await navigator.clipboard.write([
-								new ClipboardItem({
-									[blob.type]: blob,
-								}),
-							]);
-						};
-
-						try {
-							const data = await fetch(url);
-							const blob = await data.blob();
-							try {
-								await writeImage(blob);
-							} catch (error) {
-								// Chrome seems to only support PNG on write, convert and try again
-								if (blob.type !== "image/png") {
-									const canvas = $el("canvas", {
-										width: img.naturalWidth,
-										height: img.naturalHeight,
-									});
-									const ctx = canvas.getContext("2d");
-									let image;
-									if (typeof window.createImageBitmap === "undefined") {
-										image = new Image();
-										const p = new Promise((resolve, reject) => {
-											image.onload = resolve;
-											image.onerror = reject;
-										}).finally(() => {
-											URL.revokeObjectURL(image.src);
-										});
-										image.src = URL.createObjectURL(blob);
-										await p;
-									} else {
-										image = await createImageBitmap(blob);
-									}
-									try {
-										ctx.drawImage(image, 0, 0);
-										canvas.toBlob(writeImage, "image/png");
-									} finally {
-										if (typeof image.close === "function") {
-											image.close();
-										}
-									}
-
-									return;
-								}
-								throw error;
-							}
-						} catch (error) {
-							alert("Error copying image: " + (error.message ?? error));
-						}
-					},
-				},
-			];
-		}
-
 		node.prototype.getExtraMenuOptions = function (_, options) {
 			if (this.imgs) {
 				// If this node has images then we add an open in new tab item
@@ -351,17 +263,16 @@ export class sdcfyApp {
 							content: "Open Image",
 							callback: () => {
 								let url = new URL(img.src);
-								url.searchParams.delete("preview");
-								window.open(url, "_blank");
+								url.searchParams.delete('preview');
+								window.open(url, "_blank")
 							},
 						},
-						...getCopyImageOption(img), 
 						{
 							content: "Save Image",
 							callback: () => {
 								const a = document.createElement("a");
 								let url = new URL(img.src);
-								url.searchParams.delete("preview");
+								url.searchParams.delete('preview');
 								a.href = url;
 								a.setAttribute("download", new URLSearchParams(url.search).get("filename"));
 								document.body.append(a);
@@ -374,41 +285,33 @@ export class sdcfyApp {
 			}
 
 			options.push({
-				content: "Bypass",
-				callback: (obj) => {
-					if (this.mode === 4) this.mode = 0;
-					else this.mode = 4;
-					this.graph.change();
-				},
-			});
-
-			// prevent conflict of clipspace content
-			if (!sdcfyApp.clipspace_return_node) {
-				options.push({
-					content: "Copy (Clipspace)",
-					callback: (obj) => {
-						sdcfyApp.copyToClipspace(this);
-					},
+					content: "Bypass",
+					callback: (obj) => { if (this.mode === 4) this.mode = 0; else this.mode = 4; this.graph.change(); }
 				});
 
-				if (sdcfyApp.clipspace != null) {
-					options.push({
-						content: "Paste (Clipspace)",
-						callback: () => {
-							sdcfyApp.pasteFromClipspace(this);
-						},
+			// prevent conflict of clipspace content
+			if(!ComfyApp.clipspace_return_node) {
+				options.push({
+						content: "Copy (Clipspace)",
+						callback: (obj) => { ComfyApp.copyToClipspace(this); }
 					});
+
+				if(ComfyApp.clipspace != null) {
+					options.push({
+							content: "Paste (Clipspace)",
+							callback: () => { ComfyApp.pasteFromClipspace(this); }
+						});
 				}
 
-				if (sdcfyApp.isImageNode(this)) {
+				if(ComfyApp.isImageNode(this)) {
 					options.push({
-						content: "Open in MaskEditor",
-						callback: (obj) => {
-							sdcfyApp.copyToClipspace(this);
-							sdcfyApp.clipspace_return_node = this;
-							sdcfyApp.open_maskeditor();
-						},
-					});
+							content: "Open in MaskEditor",
+							callback: (obj) => {
+								ComfyApp.copyToClipspace(this);
+								ComfyApp.clipspace_return_node = this;
+								ComfyApp.open_maskeditor();
+							}
+						});
 				}
 			}
 		};
@@ -486,10 +389,8 @@ export class sdcfyApp {
 			return shiftY;
 		}
 
-		node.prototype.setSizeForImage = function (force) {
-			if(!force && this.animatedImages) return;
-
-			if (this.inputHeight || this.freeWidgetSpace > 210) {
+		node.prototype.setSizeForImage = function () {
+			if (this.inputHeight) {
 				this.setSize(this.size);
 				return;
 			}
@@ -505,20 +406,13 @@ export class sdcfyApp {
 				let imagesChanged = false
 
 				const output = app.nodeOutputs[this.id + ""];
-				if (output?.images) {
-					this.animatedImages = output?.animated?.find(Boolean);
+				if (output && output.images) {
 					if (this.images !== output.images) {
 						this.images = output.images;
 						imagesChanged = true;
-						imgURLs = imgURLs.concat(
-							output.images.map((params) => {
-								return api.apiURL(
-									"/view?" +
-										new URLSearchParams(params).toString() +
-										(this.animatedImages ? "" : app.getPreviewFormatParam()) + app.getRandParam()
-								);
-							})
-						);
+						imgURLs = imgURLs.concat(output.images.map(params => {
+							return api.apiURL("/view?" + new URLSearchParams(params).toString() + app.getPreviewFormatParam());
+						}))
 					}
 				}
 
@@ -597,35 +491,7 @@ export class sdcfyApp {
 					return true;
 				}
 
-				if (this.imgs?.length) {
-					const widgetIdx = this.widgets?.findIndex((w) => w.name === ANIM_PREVIEW_WIDGET);
-				
-					if(this.animatedImages) {
-						// Instead of using the canvas we'll use a IMG
-						if(widgetIdx > -1) {
-							// Replace content
-							const widget = this.widgets[widgetIdx];
-							widget.options.host.updateImages(this.imgs);
-						} else {
-							const host = createImageHost(this);
-							this.setSizeForImage(true);
-							const widget = this.addDOMWidget(ANIM_PREVIEW_WIDGET, "img", host.el, {
-								host,
-								getHeight: host.getHeight,
-								onDraw: host.onDraw,
-								hideOnZoom: false
-							});
-							widget.serializeValue = () => undefined;
-							widget.options.host.updateImages(this.imgs);
-						}
-						return;
-					}
-
-					if (widgetIdx > -1) {
-						this.widgets[widgetIdx].onRemove?.();
-						this.widgets.splice(widgetIdx, 1);
-					}
-
+				if (this.imgs && this.imgs.length) {
 					const canvas = app.graph.list_of_graphcanvas[0];
 					const mouse = canvas.graph_mouse;
 					if (!canvas.pointer_is_down && this.pointerDown) {
@@ -665,7 +531,31 @@ export class sdcfyApp {
 						}
 						else {
 							cell_padding = 0;
-							({ cellWidth, cellHeight, cols, shiftX } = calculateImageGrid(this.imgs, dw, dh));
+							let best = 0;
+							let w = this.imgs[0].naturalWidth;
+							let h = this.imgs[0].naturalHeight;
+
+							// compact style
+							for (let c = 1; c <= numImages; c++) {
+								const rows = Math.ceil(numImages / c);
+								const cW = dw / c;
+								const cH = dh / rows;
+								const scaleX = cW / w;
+								const scaleY = cH / h;
+
+								const scale = Math.min(scaleX, scaleY, 1);
+								const imageW = w * scale;
+								const imageH = h * scale;
+								const area = imageW * imageH * numImages;
+
+								if (area > best) {
+									best = area;
+									cellWidth = imageW;
+									cellHeight = imageH;
+									cols = c;
+									shiftX = c * ((cW - imageW) / 2);
+								}
+							}
 						}
 
 						let anyHovered = false;
@@ -857,7 +747,7 @@ export class sdcfyApp {
 	 * Adds a handler on paste that extracts and loads images or workflows from pasted JSON data
 	 */
 	#addPasteHandler() {
-		document.addEventListener("paste", async (e) => {
+		document.addEventListener("paste", (e) => {
 			// ctrl+shift+v is used to paste nodes with connections
 			// this is handled by litegraph
 			if(this.shiftDown) return;
@@ -873,7 +763,7 @@ export class sdcfyApp {
 					// If an image node is selected, paste into it
 					if (this.canvas.current_node &&
 						this.canvas.current_node.is_selected &&
-						sdcfyApp.isImageNode(this.canvas.current_node)) {
+						ComfyApp.isImageNode(this.canvas.current_node)) {
 						imageNode = this.canvas.current_node;
 					}
 
@@ -905,7 +795,7 @@ export class sdcfyApp {
 			}
 
 			if (workflow && workflow.version && workflow.nodes && workflow.extra) {
-				await this.loadGraphData(workflow);
+				this.loadGraphData(workflow);
 			}
 			else {
 				if (e.target.type === "text" || e.target.type === "textarea") {
@@ -1255,19 +1145,7 @@ export class sdcfyApp {
 		});
 
 		api.addEventListener("executed", ({ detail }) => {
-			const output = this.nodeOutputs[detail.node];
-			if (detail.merge && output) {
-				for (const k in detail.output ?? {}) {
-					const v = output[k];
-					if (v instanceof Array) {
-						output[k] = v.concat(detail.output[k]);
-					} else {
-						output[k] = detail.output[k];
-					}
-				}
-			} else {
-				this.nodeOutputs[detail.node] = detail.output;
-			}
+			this.nodeOutputs[detail.node] = detail.output;
 			const node = this.graph.getNodeById(detail.node);
 			if (node) {
 				if (node.onExecuted)
@@ -1352,7 +1230,7 @@ export class sdcfyApp {
 	 */
 	async #loadExtensions() {
 	    const extensions = await api.getExtensions();
-	    this.logging.addEntry("sdcfy.App", "debug", { Extensions: extensions });
+	    this.logging.addEntry("Comfy.App", "debug", { Extensions: extensions });
 	
 	    const extensionPromises = extensions.map(async ext => {
 	        try {
@@ -1365,92 +1243,10 @@ export class sdcfyApp {
 	    await Promise.all(extensionPromises);
 	}
 
-	async #migrateSettings() {
-		this.isNewUserSession = true;
-		// Store all current settings
-		const settings = Object.keys(this.ui.settings).reduce((p, n) => {
-			const v = localStorage[`sdcfy.Settings.${n}`];
-			if (v) {
-				try {
-					p[n] = JSON.parse(v);
-				} catch (error) {}
-			}
-			return p;
-		}, {});
-
-		await api.storeSettings(settings);
-	}
-
-	async #setUser() {
-		const userConfig = await api.getUserConfig();
-		this.storageLocation = userConfig.storage;
-		if (typeof userConfig.migrated == "boolean") {
-			// Single user mode migrated true/false for if the default user is created
-			if (!userConfig.migrated && this.storageLocation === "server") {
-				// Default user not created yet
-				await this.#migrateSettings();
-			}
-			return;
-		}
-
-		this.multiUserServer = true;
-		let user = localStorage["sdcfy.userId"];
-		const users = userConfig.users ?? {};
-		if (!user || !users[user]) {
-			// This will rarely be hit so move the loading to on demand
-			const { UserSelectionScreen } = await import("./ui/userSelection.js");
-		
-			this.ui.menuContainer.style.display = "none";
-			const { userId, username, created } = await new UserSelectionScreen().show(users, user);
-			this.ui.menuContainer.style.display = "";
-
-			user = userId;
-			localStorage["sdcfy.userName"] = username;
-			localStorage["sdcfy.userId"] = user;
-
-			if (created) {
-				api.user = user;
-				await this.#migrateSettings();
-			}
-		}
-
-		api.user = user;
-
-		this.ui.settings.addSetting({
-			id: "sdcfy.SwitchUser",
-			name: "Switch User",
-			type: (name) => {
-				let currentUser = localStorage["sdcfy.userName"];
-				if (currentUser) {
-					currentUser = ` (${currentUser})`;
-				}
-				return $el("tr", [
-					$el("td", [
-						$el("label", {
-							textContent: name,
-						}),
-					]),
-					$el("td", [
-						$el("button", {
-							textContent: name + (currentUser ?? ""),
-							onclick: () => {
-								delete localStorage["sdcfy.userId"];
-								delete localStorage["sdcfy.userName"];
-								window.location.reload();
-							},
-						}),
-					]),
-				]);
-			},
-		});
-	}
-
 	/**
 	 * Set up the app on the page
 	 */
 	async setup() {
-		await this.#setUser();
-		await this.ui.settings.load();
 		await this.#loadExtensions();
 
 		// Create and mount the LiteGraph in the DOM
@@ -1460,11 +1256,9 @@ export class sdcfyApp {
 		canvasEl.tabIndex = "1";
 		document.body.prepend(canvasEl);
 
-		addDomClippingSetting();
 		this.#addProcessMouseHandler();
 		this.#addProcessKeyHandler();
 		this.#addConfigureHandler();
-		this.#addApiUpdateHandlers();
 
 		this.graph = new LGraph();
 
@@ -1479,7 +1273,7 @@ export class sdcfyApp {
 		this.graph.start();
 
 		function resizeCanvas() {
-			// Limit minimal scale to 1, see https://github.com/
+			// Limit minimal scale to 1, see https://github.com/comfyanonymous/ComfyUI/pull/845
 			const scale = Math.max(window.devicePixelRatio, 1);
 			const { width, height } = canvasEl.getBoundingClientRect();
 			canvasEl.width = Math.round(width * scale);
@@ -1494,42 +1288,31 @@ export class sdcfyApp {
 
 		await this.#invokeExtensionsAsync("init");
 		await this.registerNodes();
-		initWidgets(this);
 
 		// Load previous workflow
 		let restored = false;
 		try {
-			const loadWorkflow = async (json) => {
-				if (json) {
-					const workflow = JSON.parse(json);
-					await this.loadGraphData(workflow);
-					return true;
-				}
-			};
-			const clientId = api.initialClientId ?? api.clientId;
-			restored =
-				(clientId && (await loadWorkflow(sessionStorage.getItem(`workflow:${clientId}`)))) ||
-				(await loadWorkflow(localStorage.getItem("workflow")));
+			const json = localStorage.getItem("workflow");
+			if (json) {
+				const workflow = JSON.parse(json);
+				this.loadGraphData(workflow);
+				restored = true;
+			}
 		} catch (err) {
 			console.error("Error loading previous workflow", err);
 		}
 
 		// We failed to restore a workflow so load the default
 		if (!restored) {
-			await this.loadGraphData();
+			this.loadGraphData();
 		}
 
 		// Save current workflow automatically
-		setInterval(() => {
-			const workflow = JSON.stringify(this.graph.serialize());
-			localStorage.setItem("workflow", workflow);
-			if (api.clientId) {
-				sessionStorage.setItem(`workflow:${api.clientId}`, workflow);
-			}
-		}, 1000);
+		setInterval(() => localStorage.setItem("workflow", JSON.stringify(this.graph.serialize())), 1000);
 
 		this.#addDrawNodeHandler();
 		this.#addDrawGroupsHandler();
+		this.#addApiUpdateHandlers();
 		this.#addDropHandler();
 		this.#addCopyHandler();
 		this.#addPasteHandler();
@@ -1549,103 +1332,87 @@ export class sdcfyApp {
 		await this.#invokeExtensionsAsync("registerCustomNodes");
 	}
 
-	getWidgetType(inputData, inputName) {
-		const type = inputData[0];
-
-		if (Array.isArray(type)) {
-			return "COMBO";
-		} else if (`${type}:${inputName}` in this.widgets) {
-			return `${type}:${inputName}`;
-		} else if (type in this.widgets) {
-			return type;
-		} else {
-			return null;
-		}
-	}
-
-	async registerNodeDef(nodeId, nodeData) {
-		const self = this;
-		const node = Object.assign(
-			function sdcfyNode() {
-				var inputs = nodeData["input"]["required"];
-				if (nodeData["input"]["optional"] != undefined) {
-					inputs = Object.assign({}, nodeData["input"]["required"], nodeData["input"]["optional"]);
-				}
-				const config = { minWidth: 1, minHeight: 1 };
-				for (const inputName in inputs) {
-					const inputData = inputs[inputName];
-					const type = inputData[0];
-
-					let widgetCreated = true;
-					const widgetType = self.getWidgetType(inputData, inputName);
-					if(widgetType) {
-						if(widgetType === "COMBO") {
-							Object.assign(config, self.widgets.COMBO(this, inputName, inputData, app) || {});
-						} else {
-							Object.assign(config, self.widgets[widgetType](this, inputName, inputData, app) || {});
-						}
-					} else {
-						// Node connection inputs
-						this.addInput(inputName, type);
-						widgetCreated = false;
-					}
-
-					if(widgetCreated && inputData[1]?.forceInput && config?.widget) {
-						if (!config.widget.options) config.widget.options = {};
-						config.widget.options.forceInput = inputData[1].forceInput;
-					}
-					if(widgetCreated && inputData[1]?.defaultInput && config?.widget) {
-						if (!config.widget.options) config.widget.options = {};
-						config.widget.options.defaultInput = inputData[1].defaultInput;
-					}
-				}
-
-				for (const o in nodeData["output"]) {
-					let output = nodeData["output"][o];
-					if(output instanceof Array) output = "COMBO";
-					const outputName = nodeData["output_name"][o] || output;
-					const outputShape = nodeData["output_is_list"][o] ? LiteGraph.GRID_SHAPE : LiteGraph.CIRCLE_SHAPE ;
-					this.addOutput(outputName, output, { shape: outputShape });
-				}
-
-				const s = this.computeSize();
-				s[0] = Math.max(config.minWidth, s[0] * 1.5);
-				s[1] = Math.max(config.minHeight, s[1]);
-				this.size = s;
-				this.serialize_widgets = true;
-
-				app.#invokeExtensionsAsync("nodeCreated", this);
-			},
-			{
-				title: nodeData.display_name || nodeData.name,
-				sdcfyClass: nodeData.name,
-				nodeData
-			}
-		);
-		node.prototype.sdcfyClass = nodeData.name;
-
-		this.#addNodeContextMenuHandler(node);
-		this.#addDrawBackgroundHandler(node, app);
-		this.#addNodeKeyHandler(node);
-
-		await this.#invokeExtensionsAsync("beforeRegisterNodeDef", node, nodeData);
-		LiteGraph.registerNodeType(nodeId, node);
-		node.category = nodeData.category;
-	}
-
     async registerNodesFromDefs(defs) {
 		await this.#invokeExtensionsAsync("addCustomNodeDefs", defs);
 
 		// Generate list of known widgets
-		this.widgets = Object.assign(
+		const widgets = Object.assign(
 			{},
-			sdcfyWidgets,
+			ComfyWidgets,
 			...(await this.#invokeExtensionsAsync("getCustomWidgets")).filter(Boolean)
 		);
 
 		// Register a node for each definition
 		for (const nodeId in defs) {
-			this.registerNodeDef(nodeId, defs[nodeId]);
+			const nodeData = defs[nodeId];
+			const node = Object.assign(
+				function ComfyNode() {
+					var inputs = nodeData["input"]["required"];
+					if (nodeData["input"]["optional"] != undefined){
+					    inputs = Object.assign({}, nodeData["input"]["required"], nodeData["input"]["optional"])
+					}
+					const config = { minWidth: 1, minHeight: 1 };
+					for (const inputName in inputs) {
+						const inputData = inputs[inputName];
+						const type = inputData[0];
+
+						let widgetCreated = true;
+						if (Array.isArray(type)) {
+							// Enums
+							Object.assign(config, widgets.COMBO(this, inputName, inputData, app) || {});
+						} else if (`${type}:${inputName}` in widgets) {
+							// Support custom widgets by Type:Name
+							Object.assign(config, widgets[`${type}:${inputName}`](this, inputName, inputData, app) || {});
+						} else if (type in widgets) {
+							// Standard type widgets
+							Object.assign(config, widgets[type](this, inputName, inputData, app) || {});
+						} else {
+							// Node connection inputs
+							this.addInput(inputName, type);
+							widgetCreated = false;
+						}
+
+						if(widgetCreated && inputData[1]?.forceInput && config?.widget) {
+							if (!config.widget.options) config.widget.options = {};
+							config.widget.options.forceInput = inputData[1].forceInput;
+						}
+						if(widgetCreated && inputData[1]?.defaultInput && config?.widget) {
+							if (!config.widget.options) config.widget.options = {};
+							config.widget.options.defaultInput = inputData[1].defaultInput;
+						}
+					}
+
+					for (const o in nodeData["output"]) {
+						let output = nodeData["output"][o];
+						if(output instanceof Array) output = "COMBO";
+						const outputName = nodeData["output_name"][o] || output;
+						const outputShape = nodeData["output_is_list"][o] ? LiteGraph.GRID_SHAPE : LiteGraph.CIRCLE_SHAPE ;
+						this.addOutput(outputName, output, { shape: outputShape });
+					}
+
+					const s = this.computeSize();
+					s[0] = Math.max(config.minWidth, s[0] * 1.5);
+					s[1] = Math.max(config.minHeight, s[1]);
+					this.size = s;
+					this.serialize_widgets = true;
+
+					app.#invokeExtensionsAsync("nodeCreated", this);
+				},
+				{
+					title: nodeData.display_name || nodeData.name,
+					comfyClass: nodeData.name,
+					nodeData
+				}
+			);
+			node.prototype.comfyClass = nodeData.name;
+
+			this.#addNodeContextMenuHandler(node);
+			this.#addDrawBackgroundHandler(node, app);
+			this.#addNodeKeyHandler(node);
+
+			await this.#invokeExtensionsAsync("beforeRegisterNodeDef", node, nodeData);
+			LiteGraph.registerNodeType(nodeId, node);
+			node.category = nodeData.category;
 		}
 	}
 
@@ -1686,80 +1453,34 @@ export class sdcfyApp {
 		localStorage.setItem("litegrapheditor_clipboard", old);
 	}
 
-	showMissingNodesError(missingNodeTypes, hasAddedNodes = true) {
-		let seenTypes = new Set();
-
-		this.ui.dialog.show(
-			$el("div.sdcfy-missing-nodes", [
-				$el("span", { textContent: "When loading the graph, the following node types were not found: " }),
-				$el(
-					"ul",
-					Array.from(new Set(missingNodeTypes)).map((t) => {
-						let children = [];
-						if (typeof t === "object") {
-							if(seenTypes.has(t.type)) return null;
-							seenTypes.add(t.type);
-							children.push($el("span", { textContent: t.type }));
-							if (t.hint) {
-								children.push($el("span", { textContent: t.hint }));
-							}
-							if (t.action) {
-								children.push($el("button", { onclick: t.action.callback, textContent: t.action.text }));
-							}
-						} else {
-							if(seenTypes.has(t)) return null;
-							seenTypes.add(t);
-							children.push($el("span", { textContent: t }));
-						}
-						return $el("li", children);
-					}).filter(Boolean)
-				),
-				...(hasAddedNodes
-					? [$el("span", { textContent: "Nodes that have failed to load will show as red on the graph." })]
-					: []),
-			])
-		);
-		this.logging.addEntry("sdcfy.App", "warn", {
-			MissingNodes: missingNodeTypes,
-		});
-	}
-
 	/**
 	 * Populates the graph with the specified workflow data
 	 * @param {*} graphData A serialized graph object
-	 * @param { boolean } clean If the graph state, e.g. images, should be cleared
 	 */
-	async loadGraphData(graphData, clean = true) {
-		if (clean !== false) {
-			this.clean();
-		}
+	loadGraphData(graphData) {
+		this.clean();
 
 		let reset_invalid_values = false;
 		if (!graphData) {
-			graphData = defaultGraph;
+			if (typeof structuredClone === "undefined")
+			{
+				graphData = JSON.parse(JSON.stringify(defaultGraph));
+			}else
+			{
+				graphData = structuredClone(defaultGraph);
+			}
 			reset_invalid_values = true;
 		}
 
-		if (typeof structuredClone === "undefined")
-		{
-			graphData = JSON.parse(JSON.stringify(graphData));
-		}else
-		{
-			graphData = structuredClone(graphData);
-		}
-
 		const missingNodeTypes = [];
-		await this.#invokeExtensionsAsync("beforeConfigureGraph", graphData, missingNodeTypes);
 		for (let n of graphData.nodes) {
 			// Patch T2IAdapterLoader to ControlNetLoader since they are the same node now
 			if (n.type == "T2IAdapterLoader") n.type = "ControlNetLoader";
 			if (n.type == "ConditioningAverage ") n.type = "ConditioningAverage"; //typo fix
-			if (n.type == "SDV_img2vid_Conditioning") n.type = "SVD_img2vid_Conditioning"; //typo fix
 
 			// Find missing node types
 			if (!(n.type in LiteGraph.registered_node_types)) {
 				missingNodeTypes.push(n.type);
-				n.type = sanitizeNodeName(n.type);
 			}
 		}
 
@@ -1849,9 +1570,15 @@ export class sdcfyApp {
 		}
 
 		if (missingNodeTypes.length) {
-			this.showMissingNodesError(missingNodeTypes);
+			this.ui.dialog.show(
+				`When loading the graph, the following node types were not found: <ul>${Array.from(new Set(missingNodeTypes)).map(
+					(t) => `<li>${t}</li>`
+				).join("")}</ul>Nodes that have failed to load will show as red on the graph.`
+			);
+			this.logging.addEntry("Comfy.App", "warn", {
+				MissingNodes: missingNodeTypes,
+			});
 		}
-		await this.#invokeExtensionsAsync("afterConfigureGraph", missingNodeTypes);
 	}
 
 	/**
@@ -1859,118 +1586,92 @@ export class sdcfyApp {
 	 * @returns The workflow and node links
 	 */
 	async graphToPrompt() {
-		for (const outerNode of this.graph.computeExecutionOrder(false)) {
-			if (outerNode.widgets) {
-				for (const widget of outerNode.widgets) {
-					// Allow widgets to run callbacks before a prompt has been queued
-					// e.g. random seed before every gen
-					widget.beforeQueued?.();
+		for (const node of this.graph.computeExecutionOrder(false)) {
+			if (node.isVirtualNode) {
+				// Don't serialize frontend only nodes but let them make changes
+				if (node.applyToGraph) {
+					node.applyToGraph();
 				}
-			}
-
-			const innerNodes = outerNode.getInnerNodes ? outerNode.getInnerNodes() : [outerNode];
-			for (const node of innerNodes) {
-				if (node.isVirtualNode) {
-					// Don't serialize frontend only nodes but let them make changes
-					if (node.applyToGraph) {
-						node.applyToGraph();
-					}
-				}
+				continue;
 			}
 		}
 
 		const workflow = this.graph.serialize();
 		const output = {};
 		// Process nodes in order of execution
-		for (const outerNode of this.graph.computeExecutionOrder(false)) {
-			const skipNode = outerNode.mode === 2 || outerNode.mode === 4;
-			const innerNodes = (!skipNode && outerNode.getInnerNodes) ? outerNode.getInnerNodes() : [outerNode];
-			for (const node of innerNodes) {
-				if (node.isVirtualNode) {
-					continue;
-				}
+		for (const node of this.graph.computeExecutionOrder(false)) {
+			const n = workflow.nodes.find((n) => n.id === node.id);
 
-				if (node.mode === 2 || node.mode === 4) {
-					// Don't serialize muted nodes
-					continue;
-				}
-
-				const inputs = {};
-				const widgets = node.widgets;
-
-				// Store all widget values
-				if (widgets) {
-					for (const i in widgets) {
-						const widget = widgets[i];
-						if (!widget.options || widget.options.serialize !== false) {
-							inputs[widget.name] = widget.serializeValue ? await widget.serializeValue(node, i) : widget.value;
-						}
-					}
-				}
-
-				// Store all node links
-				for (let i in node.inputs) {
-					let parent = node.getInputNode(i);
-					if (parent) {
-						let link = node.getInputLink(i);
-						while (parent.mode === 4 || parent.isVirtualNode) {
-							let found = false;
-							if (parent.isVirtualNode) {
-								link = parent.getInputLink(link.origin_slot);
-								if (link) {
-									parent = parent.getInputNode(link.target_slot);
-									if (parent) {
-										found = true;
-									}
-								}
-							} else if (link && parent.mode === 4) {
-								let all_inputs = [link.origin_slot];
-								if (parent.inputs) {
-									all_inputs = all_inputs.concat(Object.keys(parent.inputs))
-									for (let parent_input in all_inputs) {
-										parent_input = all_inputs[parent_input];
-										if (parent.inputs[parent_input]?.type === node.inputs[i].type) {
-											link = parent.getInputLink(parent_input);
-											if (link) {
-												parent = parent.getInputNode(parent_input);
-											}
-											found = true;
-											break;
-										}
-									}
-								}
-							}
-
-							if (!found) {
-								break;
-							}
-						}
-
-						if (link) {
-							if (parent?.updateLink) {
-								link = parent.updateLink(link);
-							}
-							if (link) {
-								inputs[node.inputs[i].name] = [String(link.origin_id), parseInt(link.origin_slot)];
-							}
-						}
-					}
-				}
-
-				let node_data = {
-					inputs,
-					class_type: node.sdcfyClass,
-				};
-
-				if (this.ui.settings.getSettingValue("sdcfy.DevMode")) {
-					// Ignored by the backend.
-					node_data["_meta"] = {
-						title: node.title,
-					}
-				}
-
-				output[String(node.id)] = node_data;
+			if (node.isVirtualNode) {
+				continue;
 			}
+
+			if (node.mode === 2 || node.mode === 4) {
+				// Don't serialize muted nodes
+				continue;
+			}
+
+			const inputs = {};
+			const widgets = node.widgets;
+
+			// Store all widget values
+			if (widgets) {
+				for (const i in widgets) {
+					const widget = widgets[i];
+					if (!widget.options || widget.options.serialize !== false) {
+						inputs[widget.name] = widget.serializeValue ? await widget.serializeValue(n, i) : widget.value;
+					}
+				}
+			}
+
+			// Store all node links
+			for (let i in node.inputs) {
+				let parent = node.getInputNode(i);
+				if (parent) {
+					let link = node.getInputLink(i);
+					while (parent.mode === 4 || parent.isVirtualNode) {
+						let found = false;
+						if (parent.isVirtualNode) {
+							link = parent.getInputLink(link.origin_slot);
+							if (link) {
+								parent = parent.getInputNode(link.target_slot);
+								if (parent) {
+									found = true;
+								}
+							}
+						} else if (link && parent.mode === 4) {
+							let all_inputs = [link.origin_slot];
+							if (parent.inputs) {
+								all_inputs = all_inputs.concat(Object.keys(parent.inputs))
+								for (let parent_input in all_inputs) {
+									parent_input = all_inputs[parent_input];
+									if (parent.inputs[parent_input]?.type === node.inputs[i].type) {
+										link = parent.getInputLink(parent_input);
+										if (link) {
+											parent = parent.getInputNode(parent_input);
+										}
+										found = true;
+										break;
+									}
+								}
+							}
+						}
+
+						if (!found) {
+							break;
+						}
+					}
+
+					if (link) {
+						inputs[node.inputs[i].name] = [String(link.origin_id), parseInt(link.origin_slot)];
+					}
+				}
+			}
+
+			output[String(node.id)] = {
+				inputs,
+				class_type: node.comfyClass,
+			};
 		}
 
 		// Remove inputs connected to removed nodes
@@ -2079,7 +1780,6 @@ export class sdcfyApp {
 		} finally {
 			this.#processingQueue = false;
 		}
-		api.dispatchEvent(new CustomEvent("promptQueued", { detail: { number, batchCount } }));
 	}
 
 	/**
@@ -2091,9 +1791,7 @@ export class sdcfyApp {
 			const pngInfo = await getPngMetadata(file);
 			if (pngInfo) {
 				if (pngInfo.workflow) {
-					await this.loadGraphData(JSON.parse(pngInfo.workflow));
-				} else if (pngInfo.prompt) {
-					this.loadApiJson(JSON.parse(pngInfo.prompt));
+					this.loadGraphData(JSON.parse(pngInfo.workflow));
 				} else if (pngInfo.parameters) {
 					importA1111(this.graph, pngInfo.parameters);
 				}
@@ -2105,92 +1803,30 @@ export class sdcfyApp {
 					this.loadGraphData(JSON.parse(pngInfo.workflow));
 				} else if (pngInfo.Workflow) {
 					this.loadGraphData(JSON.parse(pngInfo.Workflow)); // Support loading workflows from that webp custom node.
-				} else if (pngInfo.prompt) {
-					this.loadApiJson(JSON.parse(pngInfo.prompt));
-				} else if (pngInfo.Prompt) {
-					this.loadApiJson(JSON.parse(pngInfo.Prompt)); // Support loading prompts from that webp custom node.
 				}
 			}
 		} else if (file.type === "application/json" || file.name?.endsWith(".json")) {
 			const reader = new FileReader();
-			reader.onload = async () => {
-				const jsonContent = JSON.parse(reader.result);
+			reader.onload = () => {
+				var jsonContent = JSON.parse(reader.result);
 				if (jsonContent?.templates) {
 					this.loadTemplateData(jsonContent);
-				} else if(this.isApiJson(jsonContent)) {
-					this.loadApiJson(jsonContent);
 				} else {
-					await this.loadGraphData(jsonContent);
+					this.loadGraphData(jsonContent);
 				}
 			};
 			reader.readAsText(file);
 		} else if (file.name?.endsWith(".latent") || file.name?.endsWith(".safetensors")) {
 			const info = await getLatentMetadata(file);
 			if (info.workflow) {
-				await this.loadGraphData(JSON.parse(info.workflow));
-			} else if (info.prompt) {
-				this.loadApiJson(JSON.parse(info.prompt));
+				this.loadGraphData(JSON.parse(info.workflow));
 			}
 		}
-	}
-
-	isApiJson(data) {
-		return Object.values(data).every((v) => v.class_type);
-	}
-
-	loadApiJson(apiData) {
-		const missingNodeTypes = Object.values(apiData).filter((n) => !LiteGraph.registered_node_types[n.class_type]);
-		if (missingNodeTypes.length) {
-			this.showMissingNodesError(missingNodeTypes.map(t => t.class_type), false);
-			return;
-		}
-
-		const ids = Object.keys(apiData);
-		app.graph.clear();
-		for (const id of ids) {
-			const data = apiData[id];
-			const node = LiteGraph.createNode(data.class_type);
-			node.id = isNaN(+id) ? id : +id;
-			graph.add(node);
-		}
-
-		for (const id of ids) {
-			const data = apiData[id];
-			const node = app.graph.getNodeById(id);
-			for (const input in data.inputs ?? {}) {
-				const value = data.inputs[input];
-				if (value instanceof Array) {
-					const [fromId, fromSlot] = value;
-					const fromNode = app.graph.getNodeById(fromId);
-					let toSlot = node.inputs?.findIndex((inp) => inp.name === input);
-					if (toSlot == null || toSlot === -1) {
-						try {
-							// Target has no matching input, most likely a converted widget
-							const widget = node.widgets?.find((w) => w.name === input);
-							if (widget && node.convertWidgetToInput?.(widget)) {
-								toSlot = node.inputs?.length - 1;
-							}
-						} catch (error) {}
-					}
-					if (toSlot != null || toSlot !== -1) {
-						fromNode.connect(fromSlot, node, toSlot);
-					}
-				} else {
-					const widget = node.widgets?.find((w) => w.name === input);
-					if (widget) {
-						widget.value = value;
-						widget.callback?.(value);
-					}
-				}
-			}
-		}
-
-		app.graph.arrange();
 	}
 
 	/**
-	 * Registers a sdcfy web extension with the app
-	 * @param {sdcfyExtension} extension
+	 * Registers a Comfy web extension with the app
+	 * @param {ComfyExtension} extension
 	 */
 	registerExtension(extension) {
 		if (!extension.name) {
@@ -2208,8 +1844,12 @@ export class sdcfyApp {
 	async refreshComboInNodes() {
 		const defs = await api.getNodeDefs();
 
-		for (const nodeId in defs) {
-			this.registerNodeDef(nodeId, defs[nodeId]);
+		for(const nodeId in LiteGraph.registered_node_types) {
+			const node = LiteGraph.registered_node_types[nodeId];
+			const nodeDef = defs[nodeId];
+			if(!nodeDef) continue;
+
+			node.nodeData = nodeDef;
 		}
 
 		for(let nodeNum in this.graph._nodes) {
@@ -2234,8 +1874,6 @@ export class sdcfyApp {
 				}
 			}
 		}
-
-		await this.#invokeExtensionsAsync("refreshComboInNodes", defs);
 	}
 
 	/**
@@ -2250,4 +1888,4 @@ export class sdcfyApp {
 	}
 }
 
-export const app = new sdcfyApp();
+export const app = new ComfyApp();
