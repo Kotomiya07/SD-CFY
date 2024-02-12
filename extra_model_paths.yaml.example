@@ -20,11 +20,11 @@ a111:
     hypernetworks: models/hypernetworks
     controlnet: models/ControlNet
 
-#config for comfyui
+#config for sdcfy
 #your base path should be either an existing sdcfy install or a central folder where you store all of your models, loras, etc.
 
-#comfyui:
-#     base_path: path/to/comfyui/
+#sdcfy:
+#     base_path: path/to/sdcfy/
 #     checkpoints: models/checkpoints/
 #     clip: models/clip/
 #     clip_vision: models/clip_vision/

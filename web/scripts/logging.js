@@ -100,7 +100,7 @@ class ComfyLoggingDialog extends ComfyDialog {
 		const url = URL.createObjectURL(blob);
 		const a = $el("a", {
 			href: url,
-			download: `comfyui-logs-${Date.now()}.json`,
+			download: `sdcfy-logs-${Date.now()}.json`,
 			style: { display: "none" },
 			parent: document.body,
 		});
