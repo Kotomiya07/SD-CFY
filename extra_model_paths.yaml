@@ -6,8 +6,8 @@
 a111:
     base_path: /content
 
-    checkpoints: models/Stable-diffusion
-    configs: models/Stable-diffusion
+    checkpoints: models/SD
+    configs: models/SD
     vae: models/VAE
     loras: |
          models/Lora
