@@ -3,7 +3,7 @@ import os
 import re
 import uuid
 from aiohttp import web
-from sdcfy.cli_args import args
+from comfy.cli_args import args
 from folder_paths import user_directory
 from .app_settings import AppSettings
 
@@ -33,8 +33,8 @@ class UserManager():
 
     def get_request_user_id(self, request):
         user = "default"
-        if args.multi_user and "sdcfy-user" in request.headers:
-            user = request.headers["sdcfy-user"]
+        if args.multi_user and "comfy-user" in request.headers:
+            user = request.headers["comfy-user"]
 
         if user not in self.users:
             raise KeyError("Unknown user: " + user)

@@ -17,7 +17,7 @@ import urllib.request
 import urllib.parse
 
 
-from sdcfy.samplers import KSampler
+from comfy.samplers import KSampler
 
 """
 These tests generate and save images through a range of parameters
@@ -221,7 +221,7 @@ class TestInference:
     ):
         test_info = request.node.name
         comfy_graph.set_filename_prefix(test_info)
-        # Settings for sdcfy graph
+        # Settings for comfy graph
         comfy_graph.set_sampler_name(sampler)
         comfy_graph.set_scheduler(scheduler)
         comfy_graph.set_prompt(prompt)

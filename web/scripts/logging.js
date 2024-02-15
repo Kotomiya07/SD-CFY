@@ -3,21 +3,21 @@ import { api } from "./api.js";
 
 $el("style", {
 	textContent: `
-        .sdcfy-logging-logs {
+        .comfy-logging-logs {
             display: grid;
             color: var(--fg-color);
             white-space: pre-wrap;
         }
-        .sdcfy-logging-log {
+        .comfy-logging-log {
             display: contents;
         }
-        .sdcfy-logging-title {
+        .comfy-logging-title {
             background: var(--tr-even-bg-color);
             font-weight: bold;
             margin-bottom: 5px;
             text-align: center;
         }
-        .sdcfy-logging-log div {
+        .comfy-logging-log div {
             background: var(--row-bg);
             padding: 5px;
         }
@@ -100,7 +100,7 @@ class ComfyLoggingDialog extends ComfyDialog {
 		const url = URL.createObjectURL(blob);
 		const a = $el("a", {
 			href: url,
-			download: `sdcfy-logs-${Date.now()}.json`,
+			download: `comfyui-logs-${Date.now()}.json`,
 			style: { display: "none" },
 			parent: document.body,
 		});
@@ -175,13 +175,13 @@ class ComfyLoggingDialog extends ComfyDialog {
 		};
 		const keys = Object.keys(cols);
 		const headers = Object.values(cols).map((title) =>
-			$el("div.sdcfy-logging-title", {
+			$el("div.comfy-logging-title", {
 				textContent: title,
 			})
 		);
 		const rows = entries.map((entry, i) => {
 			return $el(
-				"div.sdcfy-logging-log",
+				"div.comfy-logging-log",
 				{
 					$: (el) => el.style.setProperty("--row-bg", `var(--tr-${i % 2 ? "even" : "odd"}-bg-color)`),
 				},
@@ -209,7 +209,7 @@ class ComfyLoggingDialog extends ComfyDialog {
 		});
 
 		const grid = $el(
-			"div.sdcfy-logging-logs",
+			"div.comfy-logging-logs",
 			{
 				style: {
 					gridTemplateColumns: `repeat(${headers.length}, 1fr)`,
@@ -269,6 +269,9 @@ export class ComfyLogging {
 			id: settingId,
 			name: settingId,
 			defaultValue: true,
+			onChange: (value) => {
+				this.enabled = value;
+			},
 			type: (name, setter, value) => {
 				return $el("tr", [
 					$el("td", [
@@ -283,7 +286,7 @@ export class ComfyLogging {
 							type: "checkbox",
 							checked: value,
 							onchange: (event) => {
-								setter((this.enabled = event.target.checked));
+								setter(event.target.checked);
 							},
 						}),
 						$el("button", {
@@ -359,7 +362,7 @@ export class ComfyLogging {
 
 	async addInitData() {
 		if (!this.enabled) return;
-		const source = "sdcfy.Logging";
+		const source = "ComfyUI.Logging";
 		this.addEntry(source, "debug", { UserAgent: navigator.userAgent });
 		const systemStats = await api.getSystemStats();
 		this.addEntry(source, "debug", systemStats);

@@ -20,6 +20,7 @@ async function setup() {
 							// Modify the response data to add some checkpoints
 							const objectInfo = JSON.parse(data);
 							objectInfo.CheckpointLoaderSimple.input.required.ckpt_name[0] = ["model1.safetensors", "model2.ckpt"];
+							objectInfo.VAELoader.input.required.vae_name[0] = ["vae1.safetensors", "vae2.ckpt"];
 
 							data = JSON.stringify(objectInfo, undefined, "\t");
 
@@ -44,13 +45,13 @@ async function setup() {
 			console.log(i + "/30", error);
 			if (i === 0) {
 				// Start the server on first iteration if it fails to connect
-				console.log("Starting SD-CFY server...");
+				console.log("Starting ComfyUI server...");
 
 				let python = resolve("../../python_embeded/python.exe");
 				let args;
 				let cwd;
 				if (existsSync(python)) {
-					args = ["-s", "SD-CFY/main.py"];
+					args = ["-s", "ComfyUI/main.py"];
 					cwd = "../..";
 				} else {
 					python = "python";
