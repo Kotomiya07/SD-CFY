@@ -20,6 +20,23 @@ a111:
     hypernetworks: models/hypernetworks
     controlnet: models/ControlNet
 
+colab:
+    base_path: /content
+
+    checkpoints: models/SD
+    configs: models/SD
+    vae: models/VAE
+    loras: |
+         models/Lora
+         models/LyCORIS
+    upscale_models: |
+                  models/ESRGAN
+                  models/RealESRGAN
+                  models/SwinIR
+    embeddings: embeddings
+    hypernetworks: models/hypernetworks
+    controlnet: models/ControlNet
+
 #config for comfyui
 #your base path should be either an existing comfy install or a central folder where you store all of your models, loras, etc.
 
