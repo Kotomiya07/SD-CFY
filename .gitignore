@@ -20,4 +20,4 @@ extra_model_paths.yaml
 *.log
 /output/
 /temp/
-
+*.yaml
