@@ -20,3 +20,4 @@ extra_model_paths.yaml
 *.log
 /output/
 /temp/
+/pysssss-workflows/
